@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="color-scheme" content="dark light" />
+<title>RexWork — One workspace. Every way to think.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   REXWORK — PIXEL IDENTITY / BASE
+   ============================================================ */
+:root{
+  --bg:#0a0c11;
+  --bg-2:#0e1118;
+  --surface:#12161f;
+  --surface-2:#1a2029;
+  --surface-3:#222936;
+  --border:#263041;
+  --border-soft:#1d2530;
+  --text:#e9edf5;
+  --text-soft:#c3c9d6;
+  --muted:#8791a5;
+  --faint:#5a6478;
+  --brand:#ffb000;
+  --brand-dim:#8a6a1a;
+  --green:#66d48a;
+  --red:#ff6b6b;
+  --cyan:#4dd0e1;
+  --purple:#ab8bf0;
+  --pink:#f06292;
+  --shadow:0 10px 40px rgba(0,0,0,.5);
+  --font-pixel:'Press Start 2P','VT323','Courier New',monospace;
+  --font-mono:'IBM Plex Mono','VT323',ui-monospace,monospace;
+  --font-body:'VT323','Courier New',monospace;
+  --sidebar-w:268px;
+  --topbar-h:56px;
+  --radius:4px;
+  --fs-body:18px;
+}
+html[data-density="compact"]{ --fs-body:16px; }
+html[data-density="spacious"]{ --fs-body:20px; }
+html[data-font="sm"]{ --fs-body:16px; }
+html[data-font="lg"]{ --fs-body:21px; }
+
+*{ box-sizing:border-box; margin:0; padding:0; }
+html,body{ height:100%; }
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-body);
+  font-size:var(--fs-body);
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow:hidden;
+}
+.pixel{ font-family:var(--font-pixel); text-transform:uppercase; letter-spacing:.5px; }
+button{ font-family:inherit; color:inherit; background:none; border:none; cursor:pointer; }
+input,textarea,select{ font-family:inherit; color:inherit; }
+a{ color:var(--cyan); }
+::-webkit-scrollbar{ width:9px; height:9px; }
+::-webkit-scrollbar-thumb{ background:var(--surface-3); border-radius:8px; }
+::-webkit-scrollbar-thumb:hover{ background:#2f3950; }
+::-webkit-scrollbar-track{ background:transparent; }
+.hidden{ display:none !important; }
+.muted{ color:var(--muted); }
+.faint{ color:var(--faint); }
+.sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+#app{ display:flex; height:100vh; height:100dvh; }
+#main{ flex:1; display:flex; flex-direction:column; min-width:0; position:relative; }
+
+/* ---------- SIDEBAR ---------- */
+#sidebar{
+  width:var(--sidebar-w);
+  background:var(--bg-2);
+  border-right:1px solid var(--border-soft);
+  display:flex;
+  flex-direction:column;
+  transition:margin-left .2s ease, transform .2s ease;
+  z-index:40;
+}
+#sidebar .side-scroll{ flex:1; overflow-y:auto; padding:10px 10px 24px; }
+.side-sec{ margin-top:16px; }
+.side-sec-head{
+  font-family:var(--font-pixel); text-transform:uppercase;
+  font-size:9px; color:var(--faint); padding:4px 8px; letter-spacing:1px;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.brand{
+  display:flex; align-items:center; gap:9px; padding:12px 10px 8px;
+  font-family:var(--font-pixel); text-transform:uppercase;
+}
+.brand .logo{
+  width:30px; height:30px; display:grid; place-items:center;
+  background:var(--brand); color:#1a1405; font-size:13px;
+  border-radius:3px; image-rendering:pixelated;
+  box-shadow:0 0 0 2px var(--brand-dim);
+}
+.brand .word{ font-size:13px; letter-spacing:1px; }
+.brand .sub{ font-size:7px; color:var(--faint); letter-spacing:.5px; margin-top:2px; }
+
+.btn-new{
+  margin:6px 8px 0; display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:11px; border:1px solid var(--brand); color:var(--brand);
+  font-family:var(--font-pixel); font-size:9px; text-transform:uppercase;
+  border-radius:var(--radius); letter-spacing:1px; transition:background .15s;
+}
+.btn-new:hover{ background:var(--brand); color:#1a1405; }
+.btn-search{
+  margin:8px 8px 0; display:flex; align-items:center; gap:9px;
+  padding:9px 11px; border:1px solid var(--border); border-radius:var(--radius);
+  color:var(--muted); font-size:14px; letter-spacing:.3px; width:calc(100% - 16px);
+}
+.btn-search:hover{ border-color:var(--muted); color:var(--text-soft); }
+.btn-search kbd{ margin-left:auto; font-family:var(--font-pixel); font-size:8px; color:var(--faint); border:1px solid var(--border); padding:3px 5px; border-radius:3px; }
+
+.side-item{
+  display:flex; align-items:center; gap:8px; width:100%; text-align:left;
+  padding:6px 8px; border-radius:var(--radius); font-size:14px; letter-spacing:.2px;
+  color:var(--text-soft); position:relative; line-height:1.3; min-height:30px;
+  flex-wrap:nowrap;
+}
+.side-item .mi{ width:16px; height:16px; flex:0 0 auto; display:grid; place-items:center; opacity:.85; }
+.side-item .mi svg{ width:14px; height:14px; }
+.side-item .t{ flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.side-item:hover{ background:var(--surface); }
+.side-item.active{ background:var(--surface-2); color:var(--text); }
+.side-item .pin-dot{ color:var(--brand); font-size:10px; flex:0 0 auto; }
+.side-item .acts{ display:none; align-items:center; gap:1px; flex:0 0 auto; }
+.side-item:hover .acts{ display:inline-flex; }
+.side-item .acts .icon-btn{ width:22px; height:22px; }
+.side-item .acts .icon-btn svg{ width:12px; height:12px; }
+.icon-btn{
+  width:26px; height:26px; display:grid; place-items:center; border-radius:3px;
+  color:var(--muted); flex:0 0 auto;
+}
+.icon-btn:hover{ background:var(--surface-3); color:var(--text); }
+.icon-btn.danger:hover{ color:var(--red); background:rgba(255,107,107,.12); }
+.icon-btn svg{ width:14px; height:14px; }
+
+.proj-row{ display:flex; align-items:center; gap:8px; width:100%; padding:7px 9px; border-radius:var(--radius); color:var(--text-soft); font-size:14px; text-align:left; }
+.proj-row:hover{ background:var(--surface); }
+.proj-row .swatch{ width:9px; height:9px; border-radius:2px; flex:0 0 auto; }
+.proj-row .n{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.proj-row .c{ font-size:12px; color:var(--faint); }
+
+.side-foot{ border-top:1px solid var(--border-soft); padding:8px; }
+.user-row{ display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:var(--radius); }
+.user-row:hover{ background:var(--surface); }
+.avatar{ width:30px; height:30px; border-radius:3px; display:grid; place-items:center; background:var(--surface-3); color:var(--brand); font-family:var(--font-pixel); font-size:11px; }
+.user-row .who{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; }
+.user-row .sub{ font-size:11px; color:var(--faint); margin-top:1px; }
+.user-row .spacer{ flex:1; }
+
+/* ---------- TOPBAR ---------- */
+#topbar{
+  height:var(--topbar-h); display:flex; align-items:center; gap:8px;
+  padding:0 12px; border-bottom:1px solid var(--border-soft);
+  background:var(--bg); position:relative; z-index:30;
+}
+.tb-btn{ width:34px; height:34px; display:grid; place-items:center; border-radius:var(--radius); color:var(--muted); }
+.tb-btn:hover{ background:var(--surface-2); color:var(--text); }
+.tb-btn svg{ width:17px; height:17px; }
+#tb-menu{ display:none; }
+.mode-chip{
+  display:flex; align-items:center; gap:8px; padding:6px 11px; border:1px solid var(--border);
+  border-radius:var(--radius); font-family:var(--font-pixel); font-size:9px; text-transform:uppercase;
+  letter-spacing:1px; transition:border-color .15s;
+}
+.mode-chip .dot{ width:8px; height:8px; border-radius:2px; }
+.mode-chip:hover{ border-color:var(--muted); }
+.mode-chip svg{ width:11px; height:11px; color:var(--faint); }
+.topbar-title{ flex:1; min-width:0; display:flex; align-items:center; gap:8px; padding:0 4px; }
+.topbar-title .tt{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.demo-flag{ font-family:var(--font-pixel); font-size:7px; color:#1a1405; background:var(--brand); padding:3px 6px; border-radius:3px; letter-spacing:1px; }
+
+/* ---------- MAIN CONTENT ---------- */
+#view{ flex:1; overflow-y:auto; position:relative; scroll-behavior:smooth; }
+#view.has-canvas{ display:grid; grid-template-columns:1fr 1fr; }
+#chat-col{ min-width:0; display:flex; flex-direction:column; height:100%; }
+#chat-col .msg-scroll{ flex:1; overflow-y:auto; }
+.chat-inner{ max-width:820px; margin:0 auto; padding:24px 22px 40px; }
+.welcome{ max-width:820px; margin:0 auto; padding:70px 24px 40px; text-align:center; }
+.welcome .mark{ font-family:var(--font-pixel); font-size:26px; letter-spacing:2px; margin-bottom:8px; }
+.welcome .tag{ font-family:var(--font-pixel); font-size:8px; color:var(--muted); letter-spacing:2px; line-height:2; }
+.suggest{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:30px; }
+.suggest button{
+  border:1px solid var(--border); border-radius:var(--radius); padding:11px 14px;
+  font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; color:var(--text-soft);
+}
+.suggest button:hover{ border-color:var(--brand); color:var(--brand); }
+
+/* messages */
+.msg{ padding:10px 0; display:flex; gap:12px; }
+.msg .role-ico{ width:26px; height:26px; border-radius:3px; flex:0 0 auto; display:grid; place-items:center; font-family:var(--font-pixel); font-size:10px; margin-top:3px; }
+.msg.user .role-ico{ background:var(--surface-3); color:var(--brand); }
+.msg.assistant .role-ico{ background:var(--brand); color:#1a1405; }
+.msg .body{ flex:1; min-width:0; }
+.msg .who{ font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; margin-bottom:5px; color:var(--muted); }
+.msg.user{ flex-direction:row-reverse; }
+.msg.user .body{ display:flex; flex-direction:column; align-items:flex-end; }
+.msg.user .bubble{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+  padding:10px 14px; max-width:86%; white-space:pre-wrap; word-break:break-word;
+}
+.msg.assistant .body{ padding-left:0; }
+.md{ word-break:break-word; }
+.md p{ margin:0 0 10px; }
+.md p:last-child{ margin-bottom:0; }
+.md h1,.md h2,.md h3,.md h4{ margin:18px 0 8px; font-family:var(--font-pixel); text-transform:uppercase; letter-spacing:1px; line-height:1.3; }
+.md h1{ font-size:15px; } .md h2{ font-size:13px; } .md h3{ font-size:11px; } .md h4{ font-size:10px; }
+.md ul,.md ol{ margin:0 0 10px; padding-left:22px; }
+.md li{ margin:3px 0; }
+.md blockquote{ border-left:3px solid var(--brand); padding:4px 14px; margin:10px 0; color:var(--text-soft); background:var(--surface); border-radius:0 var(--radius) var(--radius) 0; }
+.md code.inline{ background:var(--surface-2); border:1px solid var(--border); padding:1px 6px; border-radius:3px; font-family:var(--font-mono); font-size:.85em; color:var(--cyan); }
+.md pre{ position:relative; background:#0b0e14; border:1px solid var(--border); border-radius:var(--radius); margin:12px 0; overflow:hidden; }
+.md pre .pre-head{ display:flex; align-items:center; justify-content:space-between; padding:6px 10px; background:var(--surface); border-bottom:1px solid var(--border); }
+.md pre .lang{ font-family:var(--font-pixel); font-size:7px; color:var(--muted); letter-spacing:1px; }
+.md pre code{ display:block; padding:12px 14px; overflow-x:auto; font-family:var(--font-mono); font-size:.86em; line-height:1.55; color:#d7e0ef; white-space:pre; }
+.md pre .copy{ font-family:var(--font-pixel); font-size:7px; color:var(--muted); padding:4px 7px; border:1px solid var(--border); border-radius:3px; }
+.md pre .copy:hover{ color:var(--text); border-color:var(--muted); }
+.md table{ border-collapse:collapse; margin:12px 0; width:100%; font-size:.9em; }
+.md th,.md td{ border:1px solid var(--border); padding:6px 10px; text-align:left; }
+.md th{ background:var(--surface-2); font-family:var(--font-pixel); font-size:8px; letter-spacing:.5px; }
+.md hr{ border:none; border-top:1px solid var(--border); margin:16px 0; }
+.md .latex{ font-family:var(--font-mono); color:var(--purple); background:var(--surface); padding:0 4px; border-radius:3px; }
+.md a{ word-break:break-all; }
+.think{
+  display:inline-flex; align-items:center; gap:8px; color:var(--muted);
+  font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; padding:4px 0;
+}
+.think .dots span{ animation:blink 1.2s infinite; font-size:16px; }
+.think .dots span:nth-child(2){ animation-delay:.2s; }
+.think .dots span:nth-child(3){ animation-delay:.4s; }
+@keyframes blink{ 0%,80%,100%{opacity:.2;} 40%{opacity:1;} }
+.msg-acts{ display:flex; gap:2px; margin-top:7px; opacity:0; transition:opacity .15s; }
+.msg:hover .msg-acts{ opacity:1; }
+.msg-acts .icon-btn svg{ width:13px; height:13px; }
+.msg-badge{ display:inline-block; font-family:var(--font-pixel); font-size:7px; letter-spacing:1px; padding:2px 6px; border-radius:3px; margin-left:8px; vertical-align:middle; }
+.msg-badge.demo{ background:rgba(255,176,0,.15); color:var(--brand); border:1px solid var(--brand-dim); }
+.msg-badge.model{ background:var(--surface-2); color:var(--muted); border:1px solid var(--border); }
+.attach-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:8px; }
+.attach-chip{ display:inline-flex; align-items:center; gap:7px; border:1px solid var(--border); background:var(--surface); border-radius:var(--radius); padding:5px 9px; font-size:13px; }
+.attach-chip .ext{ font-family:var(--font-pixel); font-size:7px; background:var(--surface-3); color:var(--text-soft); padding:2px 5px; border-radius:2px; }
+.attach-chip img{ width:34px; height:34px; object-fit:cover; border-radius:2px; }
+.attach-chip .st{ font-size:11px; color:var(--green); }
+.attach-chip .x{ color:var(--muted); } .attach-chip .x:hover{ color:var(--red); }
+
+/* stop button */
+.stop-row{ display:flex; justify-content:center; padding:8px 0 14px; }
+.stop-row button{ font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; color:var(--red); border:1px solid var(--red); padding:8px 16px; border-radius:var(--radius); }
+.stop-row button:hover{ background:var(--red); color:#fff; }
+
+/* sources (research) */
+.sources{ margin:10px 0; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.sources .s-head{ font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; padding:8px 12px; background:var(--surface); border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+.sources .src{ padding:8px 12px; border-bottom:1px solid var(--border-soft); font-size:14px; }
+.sources .src:last-child{ border-bottom:none; }
+.sources .src .n{ font-family:var(--font-pixel); font-size:8px; color:var(--brand); margin-right:8px; }
+.sources.sim .s-head{ color:var(--brand); }
+
+/* ============================================================
+   COMPOSER
+   ============================================================ */
+#composer{ padding:10px 16px 14px; }
+#composer-inner{ max-width:820px; margin:0 auto; }
+.composer-box{ border:1px solid var(--border); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; }
+.composer-box:focus-within{ border-color:var(--muted); }
+.composer-tools{ display:flex; align-items:center; gap:4px; padding:6px 8px 0; }
+.composer-tools .icon-btn svg{ width:16px; height:16px; }
+#composer-input{ width:100%; background:transparent; border:none; outline:none; resize:none; padding:8px 14px; font-size:var(--fs-body); line-height:1.5; max-height:200px; color:var(--text); }
+#composer-input::placeholder{ color:var(--faint); }
+.composer-foot{ display:flex; align-items:center; gap:8px; padding:6px 10px 10px; }
+.composer-hint{ font-size:11px; color:var(--faint); flex:1; }
+.btn-send{
+  display:flex; align-items:center; gap:7px; background:var(--brand); color:#1a1405;
+  font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; padding:9px 15px; border-radius:var(--radius);
+}
+.btn-send:hover{ filter:brightness(1.08); }
+.btn-send:disabled{ opacity:.4; cursor:not-allowed; }
+.btn-send svg{ width:13px; height:13px; }
+/* voice pill */
+.voice-pill{ display:flex; align-items:center; gap:9px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:7px 11px; margin:0 12px 10px; font-size:13px; }
+.voice-pill .wave{ display:flex; gap:2px; align-items:center; }
+.voice-pill .wave i{ width:3px; background:var(--red); display:block; border-radius:1px; animation:wave .8s infinite ease-in-out; }
+.voice-pill .wave i:nth-child(1){ height:8px; } .voice-pill .wave i:nth-child(2){ height:14px; animation-delay:.15s; }
+.voice-pill .wave i:nth-child(3){ height:11px; animation-delay:.3s; } .voice-pill .wave i:nth-child(4){ height:16px; animation-delay:.45s; }
+.voice-pill .wave i:nth-child(5){ height:9px; animation-delay:.6s; }
+@keyframes wave{ 0%,100%{ transform:scaleY(.6);} 50%{ transform:scaleY(1);} }
+
+/* ============================================================
+   PANELS (canvas / projects / memory / instructions / settings)
+   ============================================================ */
+.panel{ max-width:820px; margin:0 auto; padding:30px 22px 60px; }
+.panel h2{ font-family:var(--font-pixel); font-size:14px; letter-spacing:1px; margin-bottom:4px; }
+.panel .lede{ color:var(--muted); margin-bottom:22px; }
+.card{ border:1px solid var(--border); border-radius:8px; background:var(--surface); margin-bottom:14px; overflow:hidden; }
+.card .card-head{ display:flex; align-items:center; gap:9px; padding:13px 16px; border-bottom:1px solid var(--border-soft); }
+.card .card-head .lbl{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; flex:1; }
+.card .card-body{ padding:16px; }
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; color:var(--muted); margin-bottom:7px; }
+.input, .select, textarea.input{
+  width:100%; background:var(--bg-2); border:1px solid var(--border); border-radius:var(--radius);
+  padding:10px 12px; font-size:16px; color:var(--text); outline:none;
+}
+.input:focus,.select:focus,textarea.input:focus{ border-color:var(--muted); }
+textarea.input{ resize:vertical; min-height:90px; }
+.btn{
+  display:inline-flex; align-items:center; gap:7px; padding:10px 16px; border-radius:var(--radius);
+  font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; border:1px solid var(--border); color:var(--text-soft);
+}
+.btn:hover{ border-color:var(--muted); }
+.btn.primary{ background:var(--brand); color:#1a1405; border-color:var(--brand); }
+.btn.ghost{ background:transparent; }
+.btn.danger{ color:var(--red); border-color:var(--red); }
+.btn.danger:hover{ background:var(--red); color:#fff; }
+.row{ display:flex; align-items:center; gap:10px; }
+.spacer{ flex:1; }
+.opt-row{ display:flex; align-items:center; justify-content:space-between; gap:14px; padding:11px 0; border-bottom:1px solid var(--border-soft); }
+.opt-row:last-child{ border-bottom:none; }
+.opt-row .ol{ font-size:15px; } .opt-row .os{ color:var(--muted); font-size:13px; }
+.seg{ display:flex; border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+.seg button{ padding:8px 14px; font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; color:var(--muted); }
+.seg button.on{ background:var(--surface-3); color:var(--text); }
+.seg button + button{ border-left:1px solid var(--border); }
+/* toggle switch */
+.switch{ position:relative; width:42px; height:24px; flex:0 0 auto; }
+.switch input{ opacity:0; width:0; height:0; }
+.switch .track{ position:absolute; inset:0; background:var(--surface-3); border-radius:14px; transition:.2s; cursor:pointer; }
+.switch .track::after{ content:''; position:absolute; width:18px; height:18px; background:var(--muted); border-radius:50%; top:3px; left:3px; transition:.2s; }
+.switch input:checked + .track{ background:var(--brand); }
+.switch input:checked + .track::after{ transform:translateX(18px); background:#1a1405; }
+
+/* chips list (memory) */
+.mem-item{ display:flex; align-items:flex-start; gap:10px; padding:12px 14px; border-bottom:1px solid var(--border-soft); }
+.mem-item:last-child{ border-bottom:none; }
+.mem-item .txt{ flex:1; font-size:15px; }
+.mem-item .acts{ display:none; gap:2px; }
+.mem-item:hover .acts{ display:flex; }
+
+/* projects grid */
+.proj-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:12px; }
+.proj-card{ border:1px solid var(--border); border-radius:8px; padding:15px; background:var(--surface); cursor:pointer; }
+.proj-card:hover{ border-color:var(--muted); }
+.proj-card .pc-top{ display:flex; align-items:center; gap:9px; margin-bottom:10px; }
+.proj-card .pc-name{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.proj-card .pc-meta{ font-size:13px; color:var(--muted); }
+.proj-card .swatch{ width:10px; height:10px; border-radius:2px; }
+
+/* canvas */
+#canvas-col{ border-left:1px solid var(--border-soft); display:flex; flex-direction:column; min-width:0; background:var(--bg-2); }
+.canvas-head{ display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--border-soft); flex-wrap:wrap; }
+.canvas-head .ct{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; margin-right:6px; }
+.canvas-body{ flex:1; display:flex; overflow:hidden; }
+.canvas-edit{ flex:1; display:flex; flex-direction:column; }
+#canvas-input{ flex:1; background:transparent; border:none; outline:none; resize:none; padding:16px; font-family:var(--font-mono); font-size:14px; line-height:1.6; color:var(--text); }
+.canvas-code-wrap{ flex:1; display:flex; overflow:hidden; position:relative; }
+.canvas-gutter{ padding:16px 8px; text-align:right; color:var(--faint); font-family:var(--font-mono); font-size:14px; line-height:1.6; user-select:none; background:var(--bg-2); border-right:1px solid var(--border-soft); overflow:hidden; }
+#canvas-input.code{ line-height:1.6; }
+.canvas-preview{ flex:1; overflow-y:auto; padding:18px; }
+.canvas-empty{ margin:auto; text-align:center; color:var(--faint); font-size:14px; }
+
+/* ============================================================
+   DROPDOWN / POPOVER
+   ============================================================ */
+.popover{
+  position:absolute; z-index:60; background:var(--surface); border:1px solid var(--border);
+  border-radius:8px; box-shadow:var(--shadow); min-width:230px; overflow:hidden;
+  display:none; animation:pop .12s ease;
+}
+.popover.open{ display:block; }
+@keyframes pop{ from{ opacity:0; transform:translateY(-4px);} to{ opacity:1; transform:none;} }
+.pop-item{ display:flex; align-items:center; gap:11px; width:100%; text-align:left; padding:11px 14px; }
+.pop-item:hover{ background:var(--surface-2); }
+.pop-item .mi-ico{ width:24px; height:24px; border-radius:3px; display:grid; place-items:center; font-family:var(--font-pixel); font-size:9px; flex:0 0 auto; }
+.pop-item .mi-txt{ flex:1; min-width:0; }
+.pop-item .mi-name{ font-family:var(--font-pixel); font-size:9px; letter-spacing:.5px; }
+.pop-item .mi-desc{ font-size:13px; color:var(--muted); margin-top:2px; line-height:1.2; }
+.pop-item .mi-model{ font-size:11px; color:var(--faint); margin-top:2px; }
+.pop-item .mi-avail{ font-family:var(--font-pixel); font-size:7px; letter-spacing:.5px; padding:2px 5px; border-radius:2px; flex:0 0 auto; }
+.mi-avail.ok{ color:var(--green); border:1px solid rgba(102,212,138,.4); }
+.mi-avail.off{ color:var(--faint); border:1px solid var(--border); }
+.mi-avail.demo{ color:var(--brand); border:1px solid var(--brand-dim); }
+.pop-item.sel{ background:var(--surface-2); box-shadow:inset 2px 0 0 var(--brand); }
+.pop-label{ font-family:var(--font-pixel); font-size:7px; letter-spacing:1px; color:var(--faint); padding:10px 14px 4px; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.overlay{ position:fixed; inset:0; background:rgba(4,6,10,.7); z-index:80; display:flex; align-items:center; justify-content:center; padding:20px; animation:fade .15s ease; }
+@keyframes fade{ from{opacity:0;} to{opacity:1;} }
+.modal{ background:var(--surface); border:1px solid var(--border); border-radius:10px; width:100%; max-width:440px; box-shadow:var(--shadow); }
+.modal.wide{ max-width:600px; }
+.modal-head{ display:flex; align-items:center; gap:9px; padding:15px 18px; border-bottom:1px solid var(--border-soft); }
+.modal-head .mh{ font-family:var(--font-pixel); font-size:10px; letter-spacing:1px; flex:1; }
+.modal-body{ padding:18px; }
+.modal-foot{ display:flex; gap:9px; justify-content:flex-end; padding:0 18px 18px; }
+.modal-foot .btn{ min-width:90px; justify-content:center; }
+
+/* ============================================================
+   TOASTS
+   ============================================================ */
+#toasts{ position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:100; display:flex; flex-direction:column; gap:8px; align-items:center; pointer-events:none; }
+.toast{ background:var(--surface-2); border:1px solid var(--border); color:var(--text-soft); font-family:var(--font-pixel); font-size:8px; letter-spacing:1px; padding:10px 18px; border-radius:6px; box-shadow:var(--shadow); animation:toastin .2s ease; }
+@keyframes toastin{ from{ opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+
+/* search overlay */
+#search-overlay{ position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.72); display:none; align-items:flex-start; justify-content:center; padding-top:9vh; }
+#search-overlay.open{ display:flex; }
+.search-modal{ width:100%; max-width:560px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
+.search-modal input{ width:100%; background:transparent; border:none; outline:none; padding:17px 18px; font-size:17px; color:var(--text); }
+.search-modal input::placeholder{ color:var(--faint); }
+.search-res{ max-height:50vh; overflow-y:auto; border-top:1px solid var(--border-soft); }
+.search-res .sr-label{ font-family:var(--font-pixel); font-size:7px; letter-spacing:1px; color:var(--faint); padding:12px 18px 4px; }
+.search-res .sr-item{ display:block; width:100%; text-align:left; padding:10px 18px; font-size:15px; }
+.search-res .sr-item:hover{ background:var(--surface-2); }
+.search-res .sr-item mark{ background:rgba(255,176,0,.3); color:var(--text); border-radius:2px; }
+.search-empty{ padding:26px 18px; text-align:center; color:var(--faint); font-size:14px; }
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:880px){
+  :root{ --sidebar-w:260px; }
+  #sidebar{ position:fixed; left:0; top:0; bottom:0; transform:translateX(-105%); }
+  #sidebar.open{ transform:translateX(0); box-shadow:var(--shadow); }
+  #tb-menu{ display:grid; }
+  #scrim{ position:fixed; inset:0; background:rgba(4,6,10,.6); z-index:35; display:none; }
+  #scrim.show{ display:block; }
+  #view.has-canvas{ display:flex; flex-direction:column; }
+  #canvas-col{ border-left:none; border-top:1px solid var(--border-soft); height:50%; }
+}
+@media (prefers-reduced-motion: reduce){
+  *{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ================= SIDEBAR ================= -->
+  <aside id="sidebar" aria-label="Sidebar">
+    <div class="brand">
+      <div class="logo">R</div>
+      <div>
+        <div class="word">REXWORK</div>
+        <div class="sub">ONE WORKSPACE. EVERY WAY TO THINK.</div>
+      </div>
+    </div>
+    <button class="btn-new" id="btn-new"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>NEW CHAT</button>
+    <button class="btn-search" id="btn-search"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>SEARCH<kbd>CTRL K</kbd></button>
+    <div class="side-scroll" id="side-scroll">
+      <div class="side-sec" id="pinned-sec">
+        <div class="side-sec-head">PINNED</div>
+        <div id="pinned-list"></div>
+      </div>
+      <div class="side-sec" id="recent-sec">
+        <div id="recent-list"></div>
+      </div>
+      <div class="side-sec">
+        <div class="side-sec-head">PROJECTS <button class="icon-btn" id="btn-new-proj" title="New project" aria-label="New project"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg></button></div>
+        <div id="proj-list"></div>
+      </div>
+    </div>
+    <div class="side-foot">
+      <div class="user-row" id="btn-settings-row" role="button" tabindex="0">
+        <div class="avatar">A</div>
+        <div>
+          <div class="who">ARLANDO</div>
+          <div class="sub">PERSONAL REXWORK WORKSPACE</div>
+        </div>
+        <div class="spacer"></div>
+        <button class="icon-btn" id="btn-settings" title="Settings" aria-label="Settings"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
+    </div>
+  </aside>
+  <div id="scrim"></div>
+
+  <!-- ================= MAIN ================= -->
+  <main id="main">
+    <header id="topbar">
+      <button class="tb-btn" id="tb-menu" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+      <button class="mode-chip" id="mode-chip" aria-haspopup="listbox" aria-expanded="false">
+        <span class="dot" id="mode-chip-dot"></span>
+        <span id="mode-chip-label">CHAT</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="topbar-title"><span class="tt" id="topbar-title">REXWORK</span></div>
+      <span class="demo-flag hidden" id="demo-flag">DEMO MODE</span>
+      <button class="tb-btn" id="tb-search" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
+      <button class="tb-btn" id="tb-canvas" title="Canvas" aria-label="Canvas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></button>
+      <button class="tb-btn" id="tb-theme" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
+    </header>
+
+    <div id="view">
+      <div id="chat-col">
+        <div class="msg-scroll" id="msg-scroll">
+          <div class="chat-inner" id="chat-inner"></div>
+        </div>
+      </div>
+      <div id="canvas-col" class="hidden"></div>
+    </div>
+
+    <footer id="composer">
+      <div id="composer-inner">
+        <div id="attach-row" class="attach-row"></div>
+        <div class="composer-box">
+          <div class="composer-tools">
+            <button class="icon-btn" id="btn-attach" title="Attach file" aria-label="Attach file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
+            <button class="icon-btn" id="btn-tools" title="Tools" aria-label="Tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0 5.4 5.4L14.7 17l-3.5-3.5L6 18.7A2.1 2.1 0 0 1 3 15.7l5.2-5.2L4.7 7l5.4-5.4a4 4 0 0 0 5.4 5.4l.2.2z"/></svg></button>
+            <button class="icon-btn" id="btn-voice" title="Voice" aria-label="Voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg></button>
+          </div>
+          <textarea id="composer-input" rows="1" placeholder="ASK REXWORK ANYTHING..." aria-label="Message RexWork"></textarea>
+          <div class="composer-foot">
+            <div class="composer-hint" id="composer-hint">ENTER TO SEND · SHIFT+ENTER FOR NEW LINE</div>
+            <button class="btn-send" id="btn-send" aria-label="Send message">
+              <span id="send-label">SEND</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<!-- model selector popover -->
+<div class="popover" id="mode-pop" role="listbox" aria-label="Choose RexWork mode"></div>
+
+<!-- tools popover -->
+<div class="popover" id="tools-pop"></div>
+
+<!-- search overlay -->
+<div id="search-overlay" role="dialog" aria-modal="true" aria-label="Search RexWork">
+  <div class="search-modal">
+    <input id="search-input" placeholder="SEARCH REXWORK..." autocomplete="off" />
+    <div class="search-res" id="search-res"></div>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="toasts" aria-live="polite"></div>
+<input type="file" id="file-input" class="hidden" multiple />
+<input type="file" id="image-input" class="hidden" accept="image/*" multiple />
+
+<script>
+/* ============================================================
+   REXWORK — FRONTEND (single file)
+   Arlando's personal AI workspace.
+   ============================================================ */
+'use strict';
+
+/* ---------- constants ---------- */
+const LS = {
+  conv:'rexwork_conversations', recent:'rexwork_recent_chats', pinned:'rexwork_pinned_chats',
+  archived:'rexwork_archived_chats', projects:'rexwork_projects', settings:'rexwork_settings',
+  memory:'rexwork_memory', custom:'rexwork_custom_instructions', theme:'rexwork_theme',
+  mode:'rexwork_selected_mode', ui:'rexwork_ui', search:'rexwork_search_history'
+};
+
+const MODES = {
+  chat:{ key:'chat', label:'CHAT', name:'REXWORK CHAT', modelLabel:'Llama 3.3 70B Versatile', desc:'General conversations', color:'#4dd0e1' },
+  coding:{ key:'coding', label:'CODING', name:'REXWORK CODING', modelLabel:'GPT-OSS 120B', desc:'Programming and debugging', color:'#66d48a' },
+  research:{ key:'research', label:'RESEARCH', name:'REXWORK RESEARCH', modelLabel:'Groq Compound', desc:'Web research and tools', color:'#ab8bf0' },
+  vision:{ key:'vision', label:'VISION', name:'REXWORK VISION', modelLabel:'Capability-dependent', desc:'Image understanding', color:'#f06292' }
+};
+const MODE_ORDER = ['chat','coding','research','vision'];
+
+const PROJ_COLORS = ['#ffb000','#66d48a','#4dd0e1','#ab8bf0','#f06292','#ff6b6b','#5b8cff','#9aa5b8'];
+
+const SUGGESTIONS = ['EXPLAIN SOMETHING','ANALYZE A FILE','HELP ME CODE','RESEARCH A TOPIC','CREATE A DOCUMENT'];
+
+/* ---------- state ---------- */
+let state = {
+  mode:'chat',
+  theme:'dark',
+  settings:{ enterToSend:true, language:'en', fontSize:'md', density:'comfortable', defaultMode:'chat', voice:{voice:'default', playbackSpeed:1, autoRead:false} },
+  conversations:[],
+  currentId:null,
+  projects:[],
+  memory:{ on:true, items:[] },
+  custom:{ about:'', respond:'' },
+  view:'chat',               // chat | projects | memory | instructions | settings
+  canvas:{ open:false, doc:'', history:[], hidx:-1, kind:'doc', title:'' },
+  attachments:[],
+  streaming:false,
+  controller:null,
+  demo:false,
+  backend:{ reachable:false, keysLoaded:0, visionAvailable:false, checked:false },
+  search:{ history:[] },
+  listening:false,
+  sidebarOpen:false
+};
+
+/* ---------- storage helpers (safe against corruption) ---------- */
+function lsGet(k, fallback){
+  try{ const v = localStorage.getItem(k); return v==null ? fallback : JSON.parse(v); }
+  catch(e){ return fallback; }
+}
+function lsSet(k, v){
+  try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){}
+}
+function lsDel(k){ try{ localStorage.removeItem(k); }catch(e){} }
+
+/* ---------- utils ---------- */
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>Array.from(document.querySelectorAll(s));
+function el(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
+function now(){ return Date.now(); }
+function fmtBytes(b){ if(b==null) return ''; if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function debounce(fn,ms){ let t; return function(...a){ clearTimeout(t); t=setTimeout(()=>fn.apply(this,a),ms); }; }
+
+/* ---------- toast ---------- */
+function toast(msg){
+  const t = el('div','toast', esc(msg));
+  $('#toasts').appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2200);
+}
+
+/* ---------- time grouping / labels ---------- */
+function timeGroup(ts){
+  const d=new Date(ts), n=new Date();
+  const s=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
+  const day=86400000;
+  const diff=s - new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+  if(diff<=0) return 'TODAY';
+  if(diff<=day) return 'YESTERDAY';
+  if(diff<=7*day) return 'PREVIOUS 7 DAYS';
+  return 'OLDER';
+}
+function timeLabel(ts){
+  const d=new Date(ts), n=new Date();
+  const diff=n.getTime()-ts;
+  if(diff<60000) return 'Just now';
+  if(diff<3600000) return Math.floor(diff/60000)+' min ago';
+  if(diff<7200000) return '1 hour ago';
+  if(diff<86400000) return Math.floor(diff/3600000)+' hours ago';
+  const s=new Date(n.getFullYear(),n.getMonth(),n.getDate()).getTime();
+  const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();
+  if(s-dd===86400000) return 'Yesterday';
+  if(diff<7*86400000) return d.toLocaleDateString('en-US',{weekday:'long'});
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+/* ---------- persistence ---------- */
+function saveConversations(){ lsSet(LS.conv, state.conversations); }
+function saveProjects(){ lsSet(LS.projects, state.projects); }
+function saveMemory(){ lsSet(LS.memory, state.memory); }
+function saveCustom(){ lsSet(LS.custom, state.custom); }
+function saveSettings(){ lsSet(LS.settings, state.settings); }
+
+function loadAll(){
+  state.theme = lsGet(LS.theme,'dark');
+  state.mode = lsGet(LS.mode,'chat');
+  state.settings = Object.assign({}, state.settings, lsGet(LS.settings,{}));
+  state.settings.voice = Object.assign({voice:'default', playbackSpeed:1, autoRead:false}, state.settings.voice || {});
+  state.conversations = lsGet(LS.conv, null);
+  state.projects = lsGet(LS.projects, null);
+  state.memory = Object.assign({on:true,items:[]}, lsGet(LS.memory,{}));
+  state.custom = Object.assign({about:'',respond:''}, lsGet(LS.custom,{}));
+  state.search.history = lsGet(LS.search, []);
+  // clean start: no demo/sample data.
+  // Also strips leftover seed data (ids c1-c10 / p1-p4) saved by older versions.
+  if(!Array.isArray(state.conversations)) state.conversations = [];
+  state.conversations = state.conversations.filter(c=>!/^(c[1-9]|c10)$/.test(String(c&&c.id)));
+  if(!Array.isArray(state.projects)) state.projects = [];
+  state.projects = state.projects.filter(p=>!/^p[1-4]$/.test(String(p&&p.id)));
+  saveConversations();
+  saveProjects();
+}
+
+
+/* ============================================================
+   BACKEND
+   ============================================================ */
+/* Base URL backend API. '' = same origin (saat index.html diserve FastAPI).
+   Kalau index.html dibuka lewat server lain (mis. Live Server :5500),
+   otomatis fallback nyoba backend di 127.0.0.1:8000. */
+let API_BASE = '';
+const API_FALLBACK = 'http://127.0.0.1:8000';
+
+async function probeHealth(base){
+  const r = await fetch(base + '/api/health', {signal:AbortSignal.timeout(4000)});
+  if(!r.ok) throw new Error('health:' + r.status);
+  return await r.json();
+}
+
+async function checkBackend(){
+  try{
+    const j = await probeHealth(API_BASE);
+    state.backend = { reachable:true, keysLoaded:j.keys_loaded||0, visionAvailable:!!j.vision_available, checked:true };
+    return;
+  }catch(e){}
+  if(API_FALLBACK && API_BASE!==API_FALLBACK){
+    try{
+      const j = await probeHealth(API_FALLBACK);
+      API_BASE = API_FALLBACK; // backend ketemu: pakai base ini untuk semua request API
+      state.backend = { reachable:true, keysLoaded:j.keys_loaded||0, visionAvailable:!!j.vision_available, checked:true };
+      return;
+    }catch(e){}
+  }
+  state.backend = { reachable:false, keysLoaded:0, visionAvailable:false, checked:true };
+}
+
+// Klik badge DEMO MODE buat cek ulang koneksi backend tanpa reload.
+(function(){
+  const df = $('#demo-flag');
+  if(!df) return;
+  df.style.cursor = 'pointer';
+  df.title = 'Backend tidak terhubung / belum ada API key. Klik untuk cek ulang.';
+  df.addEventListener('click', async ()=>{
+    toast('CHECKING BACKEND...');
+    await checkBackend();
+    renderModePopover();
+    renderAll();
+  });
+})();
+function isDemo(){
+  return !state.backend.reachable || state.backend.keysLoaded===0;
+}
+
+async function streamChat(mode, messages, onDelta, signal){
+  // returns {ok, error, demo}
+  if(isDemo()){
+    return await demoStream(mode, messages, onDelta);
+  }
+  if(mode==='vision' && !state.backend.visionAvailable){
+    return { ok:false, error:'VISION_MODEL_UNAVAILABLE', message:'REXWORK VISION is not available. No Groq vision-capable model is configured.' };
+  }
+  try{
+    const body = { mode, messages };
+    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal });
+    if(!res.ok){
+      let j=null; try{ j=await res.json(); }catch(e){}
+      return { ok:false, error: j && j.error, message: j && j.message };
+    }
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf='';
+    while(true){
+      const {done,value} = await reader.read();
+      if(done) break;
+      buf += dec.decode(value,{stream:true});
+      let idx;
+      while((idx=buf.indexOf('\n\n'))>=0){
+        const line = buf.slice(0,idx); buf=buf.slice(idx+2);
+        for(const ln of line.split('\n')){
+          if(!ln.startsWith('data:')) continue;
+          const data = ln.slice(5).trim();
+          if(data==='[DONE]') continue;
+          try{
+            const j = JSON.parse(data);
+            if(j.error){
+              if(j.error==='NO_KEYS'){ state.backend.keysLoaded=0; }
+              return { ok:false, error:j.error, message:j.message };
+            }
+            if(j.delta) onDelta(j.delta);
+          }catch(e){}
+        }
+      }
+    }
+    return { ok:true };
+  }catch(e){
+    if(e.name==='AbortError') return { ok:false, error:'ABORTED' };
+    return { ok:false, error:'NETWORK' };
+  }
+}
+
+/* ---- demo (simulated) stream — clearly labeled, never faked as real ---- */
+async function demoStream(mode, messages, onDelta){
+  const lastUser = [...messages].reverse().find(m=>m.role==='user');
+  const text = (lastUser && lastUser.content) || '';
+  const answer = demoAnswer(mode, text);
+  const words = answer.split(/(\s+)/);
+  const chunk = 3;
+  for(let i=0;i<words.length;i+=chunk){
+    await sleep(14);
+    onDelta(words.slice(i,i+chunk).join(''));
+  }
+  return { ok:true, demo:true };
+}
+
+function demoAnswer(mode, text){
+  const t = text.replace(/[\[\]]/g,'').trim();
+  const hint = '> ⚠️ **DEMO RESPONSE** — no Groq API key is configured, so this answer is simulated (not model output).';
+  if(mode==='coding'){
+    return `${hint}\n\nHere is a clean starting point based on *"${t.slice(0,80)}"*:\n\n\`\`\`js\nfunction solve(input) {\n  // TODO: implement your logic here\n  return input;\n}\n\nconsole.log(solve("hello"));\n\`\`\`\n\n**Next steps:**\n- Describe the expected input and output\n- Share any error messages or failing tests\n- I will refactor this into production-quality code.`;
+  }
+  if(mode==='research'){
+    return `${hint}\n\n## Research notes: ${t.slice(0,60) || 'your topic'}\n\nA live web search was **not** performed. When the Groq Compound backend is connected, this mode returns real, source-cited answers.\n\nSimulated sources (for UI preview only):\n\n1. *Example Source One* — overview summary\n2. *Example Source Two* — key data points\n3. *Example Source Three* — further reading`;
+  }
+  if(mode==='vision'){
+    return `${hint}\n\nVISION MODEL UNAVAILABLE — no image analysis was performed. Configure a Groq vision model in \`.env\` to enable real image understanding.`;
+  }
+  // chat
+  return `${hint}\n\nYou asked about **"${t.slice(0,80) || 'this'}"**. Here is a concise take:\n\n- **What it is** — a brief, clear explanation of the core idea.\n- **Why it matters** — the practical takeaway for your situation.\n- **Next step** — the single most useful thing to do next.\n\nAdd a Groq API key to \`.env\` and I will answer with a real model instead of this preview.`;
+}
+
+/* ============================================================
+   MARKDOWN RENDERER (lightweight, no external libs)
+   ============================================================ */
+function inlineMd(s){
+  s = s.replace(/`([^`]+)`/g, (m,c)=>`<code class="inline">${c}</code>`);
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+  s = s.replace(/\$([^$\n]+)\$/g, '<span class="latex">$1</span>');
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  return s;
+}
+function renderMarkdown(src){
+  if(!src) return '';
+  const lines = esc(src).split('\n');
+  let html='', i=0;
+  let listBuf=null, listType=null;
+  const flushList=()=>{ if(listBuf){ html += `<${listType}>${listBuf}</${listType}>`; listBuf=null; listType=null; } };
+  while(i<lines.length){
+    let line = lines[i];
+    // fenced code
+    const fc = line.match(/^```(\w*)/);
+    if(fc){
+      flushList();
+      const lang = fc[1]||'text';
+      let code=''; i++;
+      while(i<lines.length && !lines[i].trim().startsWith('```')){ code += lines[i]+'\n'; i++; }
+      i++;
+      html += `<pre><div class="pre-head"><span class="lang">${esc(lang)}</span><button class="copy">COPY</button></div><code>${code}</code></pre>`;
+      continue;
+    }
+    // headings
+    const h = line.match(/^(#{1,6})\s+(.*)/);
+    if(h){ flushList(); const lv=h[1].length; html += `<h${lv}>${inlineMd(h[2])}</h${lv}>`; i++; continue; }
+    // hr
+    if(/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(line) && !line.trim().startsWith('* ') ){ flushList(); html+='<hr/>'; i++; continue; }
+    // blockquote
+    if(/^\s*>\s?/.test(line)){ flushList(); html+='<blockquote>'; while(i<lines.length && /^\s*>\s?/.test(lines[i])){ html+=`<p>${inlineMd(lines[i].replace(/^\s*>\s?/,''))}</p>`; i++; } html+='</blockquote>'; continue; }
+    // unordered list
+    if(/^\s*[-*+]\s+/.test(line)){ if(listType!=='ul'){ flushList(); listType='ul'; listBuf=''; } listBuf+=`<li>${inlineMd(line.replace(/^\s*[-*+]\s+/,''))}</li>`; i++; continue; }
+    // ordered list
+    if(/^\s*\d+[.)]\s+/.test(line)){ if(listType!=='ol'){ flushList(); listType='ol'; listBuf=''; } listBuf+=`<li>${inlineMd(line.replace(/^\s*\d+[.)]\s+/,''))}</li>`; i++; continue; }
+    // table
+    if(/^\s*\|.*\|\s*$/.test(line) && i+1<lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+      flushList();
+      const header = line.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+      i+=2;
+      const rows=[];
+      while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i].trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim())); i++; }
+      html += '<table><thead><tr>'+header.map(c=>`<th>${inlineMd(c)}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${inlineMd(c)}</td>`).join('')+'</tr>').join('')+'</tbody></table>';
+      continue;
+    }
+    // blank
+    if(!line.trim()){ flushList(); i++; continue; }
+    // paragraph
+    flushList(); html += `<p>${inlineMd(line)}</p>`; i++;
+  }
+  flushList();
+  return html;
+}
+
+/* ============================================================
+   RENDER — SIDEBAR / TOPBAR / VIEW / COMPOSER
+   ============================================================ */
+function renderTopbar(){
+  const m = MODES[state.mode];
+  $('#mode-chip-dot').style.background = m.color;
+  $('#mode-chip-label').textContent = m.label;
+  const c = currentConversation();
+  $('#topbar-title').textContent = c ? c.title : 'REXWORK';
+  const df = $('#demo-flag');
+  if(isDemo()){ df.classList.remove('hidden'); } else { df.classList.add('hidden'); }
+}
+
+function currentConversation(){ return state.conversations.find(c=>c.id===state.currentId) || null; }
+
+function renderSidebar(){
+  const active = (c)=> c.id===state.currentId ? ' active' : '';
+  const acts = (c)=>`
+    <span class="acts">
+      <button class="icon-btn" data-act="pin" title="Pin" aria-label="Pin">${PIN_SVG}</button>
+      <button class="icon-btn" data-act="rename" title="Rename" aria-label="Rename">${EDIT_SVG}</button>
+      <button class="icon-btn" data-act="archive" title="Archive" aria-label="Archive">${ARCH_SVG}</button>
+      <button class="icon-btn" data-act="more" title="More" aria-label="More">${DOTS_SVG}</button>
+    </span>`;
+
+  // baris chat model Arena: icon mode di kiri, judul satu baris,
+  // tombol aksi (pin/rename/archive/more) muncul saat hover
+  const chatRow = (c, showPin)=>`
+    <button class="side-item${active(c)}" data-id="${c.id}" data-type="chat">
+      <span class="mi" style="color:${(MODES[c.mode]||MODES.chat).color}">${MODE_ICONS[c.mode]||MODE_ICONS.chat}</span>
+      <span class="t">${esc(c.title)}</span>
+      ${showPin?'<span class="pin-dot">◆</span>':''}${acts(c)}
+    </button>`;
+
+  // pinned
+  const pinned = state.conversations.filter(c=>c.pinned && !c.archived).sort((a,b)=>b.updatedAt-a.updatedAt);
+  const pinnedSec = $('#pinned-sec');
+  pinnedSec.classList.toggle('hidden', pinned.length===0);
+  $('#pinned-list').innerHTML = pinned.map(c=>chatRow(c,false)).join('');
+
+  // recent (grouped)
+  const recent = state.conversations.filter(c=>!c.archived).sort((a,b)=>b.updatedAt-a.updatedAt);
+  const groups = ['TODAY','YESTERDAY','PREVIOUS 7 DAYS','OLDER'];
+  let html='';
+  groups.forEach(g=>{
+    const items = recent.filter(c=>timeGroup(c.updatedAt)===g);
+    if(!items.length) return;
+    html += `<div class="side-sec-head" style="margin-top:12px">${g}</div>`;
+    html += items.map(c=>chatRow(c, c.pinned)).join('');
+  });
+  $('#recent-list').innerHTML = html || '<div class="faint" style="padding:6px 9px;font-size:13px">No conversations yet.</div>';
+
+  // projects
+  $('#proj-list').innerHTML = state.projects.map(p=>`
+    <button class="proj-row" data-id="${p.id}" data-type="proj">
+      <span class="swatch" style="background:${p.color}"></span>
+      <span class="n">${esc(p.name)}</span>
+      <span class="c">${countChatsInProject(p.id)}</span>
+    </button>`).join('');
+}
+function countChatsInProject(pid){ return state.conversations.filter(c=>c.projectId===pid && !c.archived).length; }
+
+function renderView(){
+  const v = $('#view');
+  const cc = $('#canvas-col');
+  if(state.canvas.open){
+    v.classList.add('has-canvas');
+    cc.classList.remove('hidden');
+    renderCanvas();
+  } else {
+    v.classList.remove('has-canvas');
+    cc.classList.add('hidden');
+  }
+  const chatCol = $('#chat-col');
+  if(state.view==='chat'){
+    chatCol.classList.remove('hidden');
+    renderChat();
+  } else if(state.view==='projects'){ chatCol.classList.remove('hidden'); renderProjects(); }
+  else if(state.view==='memory'){ chatCol.classList.remove('hidden'); renderMemory(); }
+  else if(state.view==='instructions'){ chatCol.classList.remove('hidden'); renderInstructions(); }
+  else if(state.view==='settings'){ chatCol.classList.remove('hidden'); renderSettings(); }
+}
+
+/* ---------- CHAT VIEW ---------- */
+function renderChat(){
+  const inner = $('#chat-inner');
+  const c = currentConversation();
+  if(!c){ inner.innerHTML = welcomeHTML(); return; }
+  inner.innerHTML = c.messages.map((m,i)=>messageHTML(m,i,c)).join('');
+  bindMessageActions();
+  scrollBottom();
+}
+function welcomeHTML(){
+  return `
+    <div class="welcome">
+      <div class="mark pixel">WELCOME TO REXWORK</div>
+      <div class="tag">YOUR AI WORKSPACE FOR THINKING,<br/>CREATING, LEARNING AND BUILDING.</div>
+      <div class="suggest">
+        ${SUGGESTIONS.map(s=>`<button data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}
+      </div>
+    </div>`;
+}
+function attachChips(m){
+  if(!m.attachments || !m.attachments.length) return '';
+  return `<div class="attach-row">`+m.attachments.map(a=>{
+    if(a.kind==='image'){
+      return `<span class="attach-chip"><img src="${a.dataUrl}" alt=""/>${esc(a.name)} <button class="icon-btn x" data-rm-attach="${a.name}">×</button></span>`;
+    }
+    return `<span class="attach-chip"><span class="ext">${esc((a.ext||'').toUpperCase().replace('.',''))}</span>${esc(a.name)} <span class="st">READY</span></span>`;
+  }).join('')+`</div>`;
+}
+function messageHTML(m, i, c){
+  const isUser = m.role==='user';
+  if(isUser){
+    const chips = attachChips(m);
+    return `<div class="msg user" data-i="${i}">
+      <div class="role-ico">A</div>
+      <div class="body">
+        <div class="who">ARLANDO</div>
+        ${chips}
+        <div class="bubble">${esc(m.content)}</div>
+        <div class="msg-acts">
+          <button class="icon-btn" data-uact="copy" title="Copy">${COPY_SVG}</button>
+          <button class="icon-btn" data-uact="edit" title="Edit">${EDIT_SVG}</button>
+          <button class="icon-btn" data-uact="del" title="Delete">${TRASH_SVG}</button>
+        </div>
+      </div>
+    </div>`;
+  }
+  const demoBadge = m.demo ? '<span class="msg-badge demo">DEMO</span>' : '';
+  const modelBadge = m.model ? `<span class="msg-badge model">${esc(m.model)}</span>` : '';
+  return `<div class="msg assistant" data-i="${i}">
+    <div class="role-ico">R</div>
+    <div class="body">
+      <div class="who">REXWORK ${demoBadge}${modelBadge}</div>
+      ${m.sources ? renderSources(m.sources, m.demo) : ''}
+      <div class="md">${renderMarkdown(m.content)}</div>
+      <div class="msg-acts">
+        <button class="icon-btn" data-aact="copy" title="Copy">${COPY_SVG}</button>
+        <button class="icon-btn" data-aact="copyMd" title="Copy as Markdown">${MD_SVG}</button>
+        <button class="icon-btn" data-aact="retry" title="Retry">${RETRY_SVG}</button>
+        <button class="icon-btn" data-aact="like" title="Like">${LIKE_SVG}</button>
+        <button class="icon-btn" data-aact="dislike" title="Dislike">${DISLIKE_SVG}</button>
+        <button class="icon-btn" data-aact="speak" title="Read aloud">${VOL_SVG}</button>
+        <button class="icon-btn" data-aact="more" title="More">${DOTS_SVG}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function renderSources(srcs, demo){
+  return `<div class="sources ${demo?'sim':''}">
+    <div class="s-head">${demo?'SIMULATED ' : ''}SOURCES FOUND</div>
+    ${srcs.map((s,ix)=>`<div class="src"><span class="n">${ix+1}</span>${esc(s.title||s.name||('SOURCE '+(ix+1)))}</div>`).join('')}
+  </div>`;
+}
+function scrollBottom(){ const s=$('#msg-scroll'); if(s) s.scrollTop = s.scrollHeight; }
+
+/* ---------- sending ---------- */
+function currentInputText(){ return $('#composer-input').value.trim(); }
+
+/* ---------- memory: explicit save commands + context injection ---------- */
+/* Trigger di AWAL pesan: ingat / inget / remember / catat (opsional: ini/kan/dong/this/that) */
+const MEM_TRIGGERS = /^(?:ingat|inget|remember|remembering|catat)(?:\s+(?:ini|kan|dong|ya|aja|ya\b|this|that|it|that\b))?\b/i;
+
+function saveMemoryItem(fact){
+  if(!fact) return false;
+  const exists = state.memory.items.some(m => String(m).toLowerCase() === fact.toLowerCase());
+  if(exists) return false;
+  state.memory.items.push(fact);
+  if(state.memory.items.length > 50) state.memory.items = state.memory.items.slice(-50);
+  saveMemory();
+  toast('SAVED TO MEMORY ✓');
+  return true;
+}
+
+/* Kalau user mulai pesan dengan 'ingat:' / 'remember this:' dll,
+   fakta-nya disimpan ke memory (dikelola di view MEMORY). */
+function detectMemoryCommand(text){
+  if(!state.memory.on) return;
+  const t = (text || '').trim();
+  if(!t) return;
+  const m = t.match(MEM_TRIGGERS);
+  if(!m) return;
+  const fact = t.slice(m[0].length).replace(/^[\s:.,\-—]+/, '').trim();
+  if(fact.length >= 4) saveMemoryItem(fact.slice(0, 300));
+}
+
+/* Lampirkan custom instructions + memory ke request backend:
+   backend baca ini dari pesan pertama (history[0]) lalu inject
+   ke system prompt — jadi tidak memenuhi riwayat chat. */
+function withContext(history){
+  const ci = ((state.custom.about || '') + '\n' + (state.custom.respond || '')).trim();
+  const mem = (state.memory.on ? state.memory.items : []).slice(-50);
+  const extras = {};
+  if(ci) extras._custom = ci.slice(0, 5000);
+  if(mem.length) extras._memory = mem;
+  if(history.length && Object.keys(extras).length){
+    history[0] = Object.assign({}, history[0], extras);
+  }
+  return history;
+}
+
+async function sendMessage(){
+  if(state.streaming) return;
+  state.view = 'chat';
+  const text = currentInputText();
+  const hasAttach = state.attachments.length>0;
+  if(!text && !hasAttach) return;
+
+  // create conversation if needed
+  if(!currentConversation()){
+    const title = makeTitle(text || (state.attachments[0]||{}).name || 'New chat');
+    const c = { id:uid(), title, mode:state.mode, model:MODES[state.mode].modelLabel, createdAt:now(), updatedAt:now(), pinned:false, archived:false, projectId:null, messages:[] };
+    state.conversations.unshift(c);
+    state.currentId = c.id;
+    saveConversations();
+  }
+  const c = currentConversation();
+  c.mode = state.mode;
+  c.model = MODES[state.mode].modelLabel;
+
+  const userMsg = { role:'user', content:text, ts:now() };
+  if(hasAttach){ userMsg.attachments = state.attachments.map(a=>({kind:a.kind,name:a.name,ext:a.ext,size:a.size,dataUrl:a.dataUrl,readable:a.readable,text:a.text})); }
+  c.messages.push(userMsg);
+  c.updatedAt = now();
+  detectMemoryCommand(text);
+
+  // build backend message list (include attached text where readable)
+  let contentForModel = text;
+  const readableAttach = state.attachments.filter(a=>a.readable && a.text);
+  if(readableAttach.length){
+    const blocks = readableAttach.map(a=>`[Attached file: ${a.name}]\n${a.text}`).join('\n\n');
+    contentForModel = text ? `${text}\n\n${blocks}` : blocks;
+  } else if(hasAttach && state.attachments.some(a=>!a.readable)){
+    contentForModel = text ? text : `[File attached: ${state.attachments.map(a=>a.name).join(', ')}]`;
+  }
+
+  $('#composer-input').value='';
+  autoGrow();
+  state.attachments=[];
+  renderAttachments();
+  renderAll();
+  closeComposerSubMenus();
+
+  // push assistant placeholder
+  const asst = { role:'assistant', content:'', ts:now(), model:MODES[state.mode].modelLabel, demo:isDemo() };
+  c.messages.push(asst);
+  renderChat();
+
+  // build history for API (prior messages + current user content)
+  const history = withContext(c.messages.slice(0,-1).filter(m=>!m.demo).map(m=>({role:m.role, content: m===userMsg ? contentForModel : m.content})));
+
+  state.streaming = true;
+  state.controller = new AbortController();
+  updateComposerState();
+  renderStreamingUI();
+
+  const res = await streamChat(state.mode, history, (delta)=>{
+    asst.content += delta;
+    throttleRender();
+  }, state.controller.signal);
+
+  state.streaming = false;
+  state.controller = null;
+  updateComposerState();
+
+  if(res.error && res.error!=='ABORTED'){
+    asst.content = asst.content || '';
+    if(res.error==='VISION_MODEL_UNAVAILABLE'){
+      asst.content = '**VISION MODEL UNAVAILABLE**\n\n'+(res.message||'No Groq vision-capable model is configured on this server.');
+    } else if(res.error==='NO_KEYS'){
+      // fall back to demo (already handled via isDemo, but keep safe)
+      asst.content = asst.content || demoAnswer(state.mode, text);
+      asst.demo = true;
+    } else if(res.error==='NETWORK'){
+      asst.content = '**CONNECTION LOST.**\n\n[ TRY AGAIN ]';
+    } else {
+      asst.content = asst.content || '**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+    }
+  }
+  if(res.demo) asst.demo = true;
+
+  if(!asst.content) asst.content = '*(empty response)*';
+  c.updatedAt = now();
+  saveConversations();
+  renderAll();
+  maybeAutoRead(asst.content);
+}
+
+function makeTitle(text){
+  const t = text.replace(/[\[\]]/g,'').trim();
+  const words = t.split(/\s+/).slice(0,5).join(' ').toUpperCase();
+  return words || 'NEW CHAT';
+}
+
+let renderTimer=null;
+function throttleRender(){
+  if(renderTimer) return;
+  renderTimer = setTimeout(()=>{ renderTimer=null; renderChat(); }, 40);
+}
+
+function renderStreamingUI(){
+  const c = currentConversation();
+  if(!c) return;
+  const last = c.messages[c.messages.length-1];
+  if(last && last.role==='assistant' && state.streaming && !last.content){
+    const inner = $('#chat-inner');
+    const nodes = inner.children;
+    if(nodes.length){ /* last node is the assistant placeholder rendered empty; show thinking */ }
+  }
+}
+
+function maybeAutoRead(text){
+  if(state.settings.voice && state.settings.voice.autoRead){ speak(text); }
+}
+
+function stopGenerating(){
+  if(!state.streaming) return;
+  if(state.controller) state.controller.abort();
+  state.streaming=false; state.controller=null;
+  updateComposerState();
+  renderAll();
+}
+
+/* ---------- composer helpers ---------- */
+function autoGrow(){
+  const t=$('#composer-input'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,200)+'px';
+}
+function updateComposerState(){
+  const b=$('#btn-send');
+  const label=$('#send-label');
+  if(state.streaming){ label.textContent='STOP'; b.setAttribute('aria-label','Stop generating'); }
+  else { label.textContent='SEND'; b.setAttribute('aria-label','Send message'); }
+  const hint=$('#composer-hint');
+  if(state.streaming) hint.textContent='REXWORK IS THINKING...';
+  else if(state.mode==='vision' && !state.backend.visionAvailable) hint.textContent='VISION MODEL UNAVAILABLE';
+  else hint.textContent='ENTER TO SEND · SHIFT+ENTER FOR NEW LINE';
+}
+
+function renderAttachments(){
+  const row=$('#attach-row');
+  row.innerHTML = state.attachments.map((a,ix)=>{
+    if(a.kind==='image') return `<span class="attach-chip"><img src="${a.dataUrl}" alt=""/>${esc(a.name)} <button class="icon-btn x" data-detach="${ix}">×</button></span>`;
+    return `<span class="attach-chip"><span class="ext">${esc((a.ext||'').toUpperCase().replace('.',''))}</span>${esc(a.name)} <span class="st">${a.readable?'READY':'READY'}</span> <button class="icon-btn x" data-detach="${ix}">×</button></span>`;
+  }).join('');
+  row.classList.toggle('hidden', state.attachments.length===0);
+}
+
+function addFiles(files){
+  Array.from(files).forEach(async f=>{
+    const ext = ('.'+f.name.split('.').pop()).toLowerCase();
+    const isImg = f.type && f.type.startsWith('image/');
+    const a = { kind: isImg?'image':'file', name:f.name.toUpperCase(), ext, size:f.size, readable:false, text:null, dataUrl:null };
+    state.attachments.push(a);
+    renderAttachments();
+    // try backend for text extraction
+    if(!isImg){
+      try{
+        const fd = new FormData(); fd.append('file', f);
+        const r = await fetch(API_BASE + '/api/upload',{method:'POST',body:fd});
+        if(r.ok){ const j = await r.json(); a.readable = !!j.readable; a.text = j.text || null; }
+      }catch(e){}
+    } else {
+      const r = new FileReader();
+      r.onload = ()=>{ a.dataUrl = r.result; renderAttachments(); };
+      r.readAsDataURL(f);
+    }
+    renderAttachments();
+    toast('FILE UPLOADED');
+  });
+}
+
+/* ============================================================
+   MODE SELECTOR
+   ============================================================ */
+function renderModePopover(){
+  const pop = $('#mode-pop');
+  pop.innerHTML = `<div class="pop-label">CHOOSE REXWORK MODE</div>` +
+    MODE_ORDER.map(k=>{
+      const m = MODES[k];
+      const sel = state.mode===k ? ' sel' : '';
+      let avail;
+      if(k==='vision'){
+        avail = state.backend.visionAvailable
+          ? '<span class="mi-avail ok">AVAILABLE</span>'
+          : '<span class="mi-avail off">UNAVAILABLE</span>';
+      } else if(!state.backend.checked){
+        avail = '<span class="mi-avail off">CHECKING</span>';
+      } else if(state.backend.keysLoaded>0){
+        avail = '<span class="mi-avail ok">AVAILABLE</span>';
+      } else {
+        avail = '<span class="mi-avail demo">DEMO</span>';
+      }
+      return `<button class="pop-item${sel}" data-mode="${k}" role="option">
+        <span class="mi-ico" style="background:${m.color}22;color:${m.color}">◆</span>
+        <span class="mi-txt">
+          <span class="mi-name" style="color:${m.color}">${m.label}</span>
+          <span class="mi-desc">${m.desc}</span>
+          <span class="mi-model">${m.modelLabel}</span>
+        </span>${avail}
+      </button>`;
+    }).join('');
+}
+function toggleModePop(){
+  const pop=$('#mode-pop');
+  const open = pop.classList.contains('open');
+  closeAllPopovers();
+  if(!open){
+    renderModePopover();
+    pop.classList.add('open');
+    positionPopover(pop, $('#mode-chip'));
+    $('#mode-chip').setAttribute('aria-expanded','true');
+  }
+}
+function positionPopover(pop, anchor){
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = (r.bottom+6)+'px';
+  pop.style.left = Math.max(8, r.left)+'px';
+}
+
+/* ---------- tools ---------- */
+const TOOLS = [
+  {k:'websearch', n:'WEB SEARCH', d:'Search the web for current info'},
+  {k:'deepresearch', n:'DEEP RESEARCH', d:'Multi-step research with sources'},
+  {k:'canvas', n:'CANVAS', d:'Open a document/code workspace'},
+  {k:'code', n:'CODE', d:'Switch to coding mode'},
+  {k:'data', n:'DATA ANALYSIS', d:'Analyze an uploaded dataset'},
+  {k:'image', n:'IMAGE UNDERSTANDING', d:'Switch to vision mode'},
+  {k:'calc', n:'CALCULATOR', d:'Quick calculations'},
+  {k:'study', n:'STUDY MODE', d:'Focused learning prompts'}
+];
+function renderToolsPopover(){
+  const pop=$('#tools-pop');
+  pop.innerHTML = `<div class="pop-label">TOOLS</div>` +
+    TOOLS.map(t=>`<button class="pop-item" data-tool="${t.k}">
+      <span class="mi-ico" style="background:var(--surface-3);color:var(--muted)">◆</span>
+      <span class="mi-txt"><span class="mi-name">${t.n}</span><span class="mi-desc">${t.d}</span></span>
+    </button>`).join('');
+}
+function toggleToolsPop(){
+  const pop=$('#tools-pop');
+  const open = pop.classList.contains('open');
+  closeAllPopovers();
+  if(!open){
+    renderToolsPopover();
+    pop.classList.add('open');
+    positionPopover(pop, $('#btn-tools'));
+  }
+}
+function handleTool(k){
+  closeAllPopovers();
+  switch(k){
+    case 'websearch': case 'deepresearch':
+      state.mode='research'; saveSelectedMode(); renderAll(); toast('RESEARCH MODE ACTIVE');
+      break;
+    case 'canvas': openCanvas(); break;
+    case 'code': state.mode='coding'; saveSelectedMode(); renderAll(); toast('CODING MODE ACTIVE'); break;
+    case 'image': state.mode='vision'; saveSelectedMode(); renderAll(); toast('VISION MODE ACTIVE'); break;
+    case 'data': dataAnalysis(); break;
+    case 'calc': openCalculator(); break;
+    case 'study': toast('STUDY MODE READY'); break;
+  }
+}
+function saveSelectedMode(){ lsSet(LS.mode, state.mode); }
+
+/* ---------- data analysis (clearly labeled demo) ---------- */
+function dataAnalysis(){
+  const csv = state.attachments.find(a=>a.readable && a.text && (a.ext==='.csv'));
+  const anyData = state.attachments.find(a=>a.readable && a.text && (a.ext==='.csv'||a.ext==='.xlsx'||a.ext==='.json'));
+  const name = (csv||anyData||{}).name || 'DATASET.CSV';
+  const txt = (csv||anyData||{}).text || '';
+  let rows = 0, cols = 0;
+  if(txt){ const lines = txt.split('\n').filter(l=>l.trim()); rows = lines.length-1; cols = (lines[0]||'').split(',').length; }
+  else { rows = 2450; cols = 12; }
+  openModal(`
+    <div class="modal-head"><span class="mh">DATA ANALYSIS</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:12px">DATASET LOADED</p>
+      <div class="card" style="margin:0 0 14px"><div class="card-body" style="font-family:var(--font-mono)">
+        <div style="font-size:15px">${esc(name)}</div>
+        <div class="muted" style="font-size:13px">ROWS: ${rows.toLocaleString()} · COLUMNS: ${cols}</div>
+      </div></div>
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <button class="btn" data-demoact="analyze">ANALYZE</button>
+        <button class="btn" data-demoact="chart">CREATE CHART</button>
+        <button class="btn" data-demoact="summarize">SUMMARIZE</button>
+      </div>
+      <div id="da-result"></div>
+      <p class="faint" style="font-size:12px;margin-top:12px">⚠ DEMO/MOCK — no real dataset processing is performed without a connected backend.</p>
+    </div>`);
+  document.querySelectorAll('[data-demoact]').forEach(b=>b.addEventListener('click',()=>{
+    const r=$('#da-result');
+    const act=b.getAttribute('data-demoact');
+    if(act==='analyze') r.innerHTML = '<div class="card" style="margin-top:14px"><div class="card-body"><table class="md" style="margin:0"><thead><tr><th>FIELD</th><th>MEAN</th><th>MIN</th><th>MAX</th></tr></thead><tbody><tr><td>score</td><td>72.4</td><td>40</td><td>100</td></tr><tr><td>age</td><td>17.8</td><td>15</td><td>19</td></tr></tbody></table></div></div><p class="faint" style="font-size:12px;margin-top:8px">Mock statistics — for preview only.</p>';
+    else if(act==='chart') r.innerHTML = '<div class="card" style="margin-top:14px"><div class="card-body" style="text-align:center;color:var(--muted)">📊 BAR CHART PREVIEW (MOCK)</div></div>';
+    else r.innerHTML = '<div class="card" style="margin-top:14px"><div class="card-body">This dataset contains <b>'+rows.toLocaleString()+'</b> rows across <b>'+cols+'</b> columns. (Mock summary.)</div></div>';
+  }));
+}
+
+/* ---------- calculator ---------- */
+function openCalculator(){
+  openModal(`
+    <div class="modal-head"><span class="mh">CALCULATOR</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body">
+      <div style="font-family:var(--font-mono);font-size:26px;text-align:right;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:12px;min-height:30px" id="calc-display">0</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px" id="calc-grid"></div>
+    </div>`);
+  const keys = ['7','8','9','÷','4','5','6','×','1','2','3','−','0','.','=','+','C'];
+  let expr='';
+  const disp=()=>{ $('#calc-display').textContent = expr || '0'; };
+  $('#calc-grid').innerHTML = keys.map(k=>`<button class="btn" style="justify-content:center;padding:12px" data-k="${k}">${k}</button>`).join('');
+  $('#calc-grid').querySelectorAll('[data-k]').forEach(b=>b.addEventListener('click',()=>{
+    const k=b.getAttribute('data-k');
+    if(k==='C'){ expr=''; }
+    else if(k==='='){
+      try{
+        let e = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+        expr = String(Function('"use strict";return ('+e+')')());
+      }catch(err){ expr='ERR'; }
+    } else { expr += k; }
+    disp();
+  }));
+  disp();
+}
+
+/* ============================================================
+   CANVAS
+   ============================================================ */
+function openCanvas(doc, title, kind){
+  state.canvas.open = true;
+  state.canvas.kind = kind || (state.mode==='coding' ? 'code' : 'doc');
+  state.canvas.title = title || 'UNTITLED';
+  if(doc!=null){ state.canvas.doc = doc; state.canvas.history=[doc]; state.canvas.hidx=0; }
+  renderAll();
+}
+function closeCanvas(){ state.canvas.open=false; renderAll(); }
+function renderCanvas(){
+  const cc = $('#canvas-col');
+  const kind = state.canvas.kind;
+  cc.innerHTML = `
+    <div class="canvas-head">
+      <span class="ct">CANVAS</span>
+      <span class="faint" style="font-size:12px">${esc(state.canvas.title)}</span>
+      <div class="spacer"></div>
+      <button class="icon-btn" data-cact="undo" title="Undo">${UNDO_SVG}</button>
+      <button class="icon-btn" data-cact="redo" title="Redo">${REDO_SVG}</button>
+      <button class="icon-btn" data-cact="toggle" title="Edit/Preview">${EYE_SVG}</button>
+      <button class="icon-btn" data-cact="export" title="Export">${DL_SVG}</button>
+      <button class="icon-btn" data-cact="close" title="Close">${X_SVG}</button>
+    </div>
+    <div class="canvas-body" id="canvas-body"></div>`;
+  renderCanvasBody();
+}
+function renderCanvasBody(){
+  const body = $('#canvas-body');
+  const kind = state.canvas.kind;
+  if(kind==='code'){
+    body.innerHTML = `<div class="canvas-code-wrap">
+      <div class="canvas-gutter" id="canvas-gutter"></div>
+      <textarea id="canvas-input" class="code" spellcheck="false" aria-label="Code editor"></textarea>
+    </div>`;
+    const ta=$('#canvas-input'); ta.value = state.canvas.doc;
+    ta.addEventListener('input', ()=>{ pushHistory(ta.value); updateGutter(ta); });
+    updateGutter(ta);
+  } else {
+    body.innerHTML = `<textarea id="canvas-input" aria-label="Document editor"></textarea>`;
+    const ta=$('#canvas-input'); ta.value = state.canvas.doc;
+    ta.addEventListener('input', ()=>pushHistory(ta.value));
+  }
+  const previewing = body.dataset.preview==='1';
+  if(previewing) toggleCanvasPreview();
+}
+function updateGutter(ta){
+  const g=$('#canvas-gutter'); if(!g) return;
+  const n = ta.value.split('\n').length;
+  let s=''; for(let i=1;i<=n;i++) s+=i+'\n';
+  g.textContent = s;
+  ta.scrollTop = 0; // keep gutter aligned
+  // sync scroll
+  ta.onscroll = ()=>{ g.scrollTop = ta.scrollTop; };
+}
+function pushHistory(v){
+  const h=state.canvas.history, i=state.canvas.hidx;
+  if(h[i]===v) return;
+  state.canvas.history = h.slice(0,i+1).concat([v]);
+  state.canvas.hidx = state.canvas.history.length-1;
+}
+function canvasUndo(){ if(state.canvas.hidx>0){ state.canvas.hidx--; state.canvas.doc=state.canvas.history[state.canvas.hidx]; refreshCanvasDoc(); } }
+function canvasRedo(){ if(state.canvas.hidx<state.canvas.history.length-1){ state.canvas.hidx++; state.canvas.doc=state.canvas.history[state.canvas.hidx]; refreshCanvasDoc(); } }
+function refreshCanvasDoc(){
+  const ta=$('#canvas-input'); if(ta){ ta.value=state.canvas.doc; if(state.canvas.kind==='code') updateGutter(ta); }
+  const pv=$('#canvas-preview'); if(pv) pv.innerHTML = renderMarkdown(state.canvas.doc);
+}
+function toggleCanvasPreview(){
+  const body=$('#canvas-body');
+  if(body.dataset.preview==='1'){
+    body.dataset.preview='0';
+    state.canvas.doc = $('#canvas-input').value;
+    renderCanvasBody();
+  } else {
+    state.canvas.doc = $('#canvas-input') ? $('#canvas-input').value : state.canvas.doc;
+    body.dataset.preview='1';
+    body.innerHTML = `<div class="canvas-preview md" id="canvas-preview">${renderMarkdown(state.canvas.doc)}</div>`;
+  }
+}
+function exportCanvas(){
+  const blob = new Blob([state.canvas.doc], {type:'text/plain'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download = (state.canvas.title||'canvas') + (state.canvas.kind==='code'?'.txt':'.md');
+  a.click(); URL.revokeObjectURL(a.href); toast('CANVAS EXPORTED');
+}
+
+/* ============================================================
+   PROJECTS VIEW
+   ============================================================ */
+function renderProjects(){
+  const inner=$('#chat-inner');
+  const chatsOf = p=>state.conversations.filter(c=>c.projectId===p.id && !c.archived);
+  inner.innerHTML = `<div class="panel">
+    <h2 class="pixel">PROJECTS</h2>
+    <p class="lede">Organize your chats, files and instructions.</p>
+    <div class="row" style="margin-bottom:16px"><div class="spacer"></div>
+      <button class="btn primary" id="p-new">+ NEW PROJECT</button></div>
+    <div class="proj-grid">
+      ${state.projects.map(p=>`
+        <div class="proj-card" data-pid="${p.id}">
+          <div class="pc-top"><span class="swatch" style="background:${p.color}"></span>
+            <span class="pc-name">${esc(p.name)}</span>
+            <button class="icon-btn" data-pact="edit" data-pid="${p.id}">${EDIT_SVG}</button>
+            <button class="icon-btn" data-pact="del" data-pid="${p.id}">${TRASH_SVG}</button>
+          </div>
+          <div class="pc-meta">${p.files.length} FILE${p.files.length===1?'':'S'} · ${chatsOf(p).length} CHAT${chatsOf(p).length===1?'':'S'}</div>
+          <div class="pc-meta muted" style="font-size:12px;margin-top:4px">${esc(p.instructions? 'HAS INSTRUCTIONS' : 'NO INSTRUCTIONS')}</div>
+        </div>`).join('')}
+    </div>
+  </div>`;
+  $('#p-new').addEventListener('click',()=>{
+    openModal(`
+      <div class="modal-head"><span class="mh">NEW PROJECT</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+      <div class="modal-body"><div class="field"><label>PROJECT NAME</label><input class="input" id="np-name" placeholder="SCHOOL"/></div></div>
+      <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="np-create">CREATE</button></div>`);
+    $('#np-create').addEventListener('click',()=>{
+      const name = ($('#np-name').value||'').trim().toUpperCase() || 'UNTITLED';
+      state.projects.push({id:uid(), name, color:PROJ_COLORS[state.projects.length%PROJ_COLORS.length], instructions:'', files:[]});
+      saveProjects(); closeModal(); renderAll(); toast('PROJECT CREATED');
+    });
+  });
+  $$('.proj-card').forEach(card=>card.addEventListener('click',e=>{
+    if(e.target.closest('[data-pact]')) return;
+    const pid=card.getAttribute('data-pid');
+    const p=state.projects.find(x=>x.id===pid);
+    openProject(p);
+  }));
+  $$('[data-pact="edit"]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); const p=state.projects.find(x=>x.id===b.getAttribute('data-pid')); renameProject(p); }));
+  $$('[data-pact="del"]').forEach(b=>b.addEventListener('click',e=>{ e.stopPropagation(); const p=state.projects.find(x=>x.id===b.getAttribute('data-pid')); deleteProject(p); }));
+}
+function openProject(p){
+  const chats = state.conversations.filter(c=>c.projectId===p.id);
+  openModal(`
+    <div class="modal-head"><span class="mh"><span class="swatch" style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${p.color};margin-right:6px"></span>${esc(p.name)}</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body">
+      <div class="field"><label>FILES</label>
+        ${p.files.length ? p.files.map(f=>`<div class="attach-chip" style="margin:0 0 6px"><span class="ext">${esc(f.ext.toUpperCase().replace('.',''))}</span>${esc(f.name)} <span class="faint" style="font-size:11px">${fmtBytes(f.size)}</span></div>`).join('') : '<p class="faint" style="font-size:13px">No files yet.</p>'}
+      </div>
+      <div class="field"><label>CHATS</label>
+        ${chats.length ? chats.map(c=>`<button class="side-item" data-popen="${c.id}" style="border:1px solid var(--border);margin-bottom:6px"><span class="t">${esc(c.title)}</span></button>`).join('') : '<p class="faint" style="font-size:13px">No chats yet.</p>'}
+      </div>
+      <div class="field"><label>CUSTOM INSTRUCTIONS</label>
+        <textarea class="input" id="p-instr" placeholder="Instructions for this project...">${esc(p.instructions||'')}</textarea>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn" data-close>CLOSE</button><button class="btn primary" id="p-save">SAVE</button></div>`);
+  $('#p-save').addEventListener('click',()=>{ p.instructions=$('#p-instr').value; saveProjects(); closeModal(); renderAll(); toast('PROJECT UPDATED'); });
+  $$('[data-popen]').forEach(b=>b.addEventListener('click',()=>{ state.currentId=b.getAttribute('data-popen'); state.view='chat'; closeModal(); renderAll(); }));
+}
+function renameProject(p){
+  openModal(`
+    <div class="modal-head"><span class="mh">RENAME PROJECT</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body"><div class="field"><input class="input" id="rp-name" value="${esc(p.name)}"/></div></div>
+    <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="rp-save">SAVE</button></div>`);
+  $('#rp-save').addEventListener('click',()=>{ const v=($('#rp-name').value||'').trim(); if(v){ p.name=v.toUpperCase(); saveProjects(); closeModal(); renderAll(); toast('PROJECT RENAMED'); } });
+}
+function deleteProject(p){
+  confirmModal(`DELETE PROJECT "${esc(p.name)}"? Chats in it will be kept but unassigned.`, ()=>{
+    state.conversations.forEach(c=>{ if(c.projectId===p.id) c.projectId=null; });
+    state.projects = state.projects.filter(x=>x.id!==p.id);
+    saveProjects(); saveConversations(); renderAll(); toast('PROJECT DELETED');
+  });
+}
+
+/* ============================================================
+   MEMORY VIEW
+   ============================================================ */
+function renderMemory(){
+  const inner=$('#chat-inner');
+  inner.innerHTML = `<div class="panel">
+    <h2 class="pixel">MEMORY</h2>
+    <p class="lede">Persistent information RexWork remembers about you.</p>
+    <div class="card"><div class="card-body"><div class="opt-row">
+      <div><div class="ol">MEMORY</div><div class="os">Let RexWork remember preferences</div></div>
+      <label class="switch"><input type="checkbox" id="mem-on" ${state.memory.on?'checked':''}><span class="track"></span></label>
+    </div></div></div>
+    <div class="card">
+      <div class="card-head"><span class="lbl">SAVED MEMORIES</span><button class="btn" id="mem-add">+ ADD</button></div>
+      <div id="mem-list">${state.memory.items.map((m,ix)=>`
+        <div class="mem-item"><span class="txt">${esc(m)}</span>
+          <span class="acts"><button class="icon-btn" data-mem-edit="${ix}">${EDIT_SVG}</button><button class="icon-btn" data-mem-del="${ix}">${TRASH_SVG}</button></span>
+        </div>`).join('') || '<div class="faint" style="padding:14px;font-size:14px">No memories yet.</div>'}</div>
+    </div>
+    <div class="row"><div class="spacer"></div><button class="btn danger" id="mem-clear">CLEAR ALL</button></div>
+  </div>`;
+  $('#mem-on').addEventListener('change',e=>{ state.memory.on=e.target.checked; saveMemory(); toast('MEMORY UPDATED'); });
+  $('#mem-add').addEventListener('click',()=>{
+    openModal(`<div class="modal-head"><span class="mh">ADD MEMORY</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+      <div class="modal-body"><textarea class="input" id="mm-txt" placeholder="e.g. Arlando prefers concise answers"></textarea></div>
+      <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="mm-save">SAVE</button></div>`);
+    $('#mm-save').addEventListener('click',()=>{ const v=($('#mm-txt').value||'').trim(); if(v){ state.memory.items.push(v); saveMemory(); closeModal(); renderMemory(); toast('MEMORY UPDATED'); } });
+  });
+  $('#mem-clear').addEventListener('click',()=>{ confirmModal('CLEAR ALL MEMORIES?', ()=>{ state.memory.items=[]; saveMemory(); renderMemory(); toast('MEMORY CLEARED'); }); });
+  $$('[data-mem-del]').forEach(b=>b.addEventListener('click',()=>{ state.memory.items.splice(+b.getAttribute('data-mem-del'),1); saveMemory(); renderMemory(); }));
+  $$('[data-mem-edit]').forEach(b=>b.addEventListener('click',()=>{
+    const ix=+b.getAttribute('data-mem-edit');
+    openModal(`<div class="modal-head"><span class="mh">EDIT MEMORY</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+      <div class="modal-body"><textarea class="input" id="mm-txt">${esc(state.memory.items[ix])}</textarea></div>
+      <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="mm-save">SAVE</button></div>`);
+    $('#mm-save').addEventListener('click',()=>{ const v=($('#mm-txt').value||'').trim(); if(v){ state.memory.items[ix]=v; saveMemory(); closeModal(); renderMemory(); toast('MEMORY UPDATED'); } });
+  }));
+}
+
+/* ---------- CUSTOM INSTRUCTIONS ---------- */
+function renderInstructions(){
+  const inner=$('#chat-inner');
+  inner.innerHTML = `<div class="panel">
+    <h2 class="pixel">CUSTOMIZE REXWORK</h2>
+    <p class="lede">Set persistent instructions for how RexWork should behave.</p>
+    <div class="card"><div class="card-body">
+      <div class="field"><label>WHAT SHOULD REXWORK KNOW ABOUT YOU?</label>
+        <textarea class="input" id="ci-about" placeholder="I'm a student preparing for physics exams...">${esc(state.custom.about)}</textarea></div>
+      <div class="field"><label>HOW SHOULD REXWORK RESPOND?</label>
+        <textarea class="input" id="ci-respond" placeholder="Be concise. Use bullet points. Prefer Indonesian where helpful...">${esc(state.custom.respond)}</textarea></div>
+    </div></div>
+    <div class="row"><div class="spacer"></div>
+      <button class="btn" id="ci-reset">RESET</button>
+      <button class="btn primary" id="ci-save">SAVE</button></div>
+  </div>`;
+  $('#ci-save').addEventListener('click',()=>{ state.custom.about=$('#ci-about').value; state.custom.respond=$('#ci-respond').value; saveCustom(); toast('INSTRUCTIONS SAVED'); });
+  $('#ci-reset').addEventListener('click',()=>{ state.custom={about:'',respond:''}; saveCustom(); renderInstructions(); toast('INSTRUCTIONS RESET'); });
+}
+
+/* ---------- SETTINGS ---------- */
+function renderSettings(){
+  const inner=$('#chat-inner');
+  const s=state.settings;
+  inner.innerHTML = `<div class="panel">
+    <h2 class="pixel">SETTINGS</h2>
+    <p class="lede">Configure your workspace.</p>
+
+    <div class="card"><div class="card-head"><span class="lbl">APPEARANCE</span></div><div class="card-body">
+      <div class="opt-row"><div><div class="ol">Theme</div><div class="os">Dark / Light / System</div></div>
+        <div class="seg" id="seg-theme">
+          <button data-theme="dark" class="${state.theme==='dark'?'on':''}">DARK</button>
+          <button data-theme="light" class="${state.theme==='light'?'on':''}">LIGHT</button>
+          <button data-theme="system" class="${state.theme==='system'?'on':''}">SYSTEM</button>
+        </div></div>
+      <div class="opt-row"><div><div class="ol">Font size</div></div>
+        <div class="seg" id="seg-font">
+          <button data-fs="sm" class="${s.fontSize==='sm'?'on':''}">S</button>
+          <button data-fs="md" class="${s.fontSize==='md'?'on':''}">M</button>
+          <button data-fs="lg" class="${s.fontSize==='lg'?'on':''}">L</button>
+        </div></div>
+    </div></div>
+
+    <div class="card"><div class="card-head"><span class="lbl">GENERAL</span></div><div class="card-body">
+      <div class="opt-row"><div><div class="ol">Enter to send</div><div class="os">Shift+Enter for new line</div></div>
+        <label class="switch"><input type="checkbox" id="st-enter" ${s.enterToSend?'checked':''}><span class="track"></span></label></div>
+      <div class="opt-row"><div><div class="ol">Default mode</div></div>
+        <select class="select" id="st-default" style="width:auto">${MODE_ORDER.map(k=>`<option value="${k}" ${s.defaultMode===k?'selected':''}>${MODES[k].label}</option>`).join('')}</select></div>
+    </div></div>
+
+    <div class="card"><div class="card-head"><span class="lbl">VOICE</span></div><div class="card-body">
+      <div class="opt-row"><div><div class="ol">Auto-read responses</div></div>
+        <label class="switch"><input type="checkbox" id="st-autoread" ${s.voice.autoRead?'checked':''}><span class="track"></span></label></div>
+      <div class="opt-row"><div><div class="ol">Playback speed</div></div>
+        <select class="select" id="st-speed" style="width:auto">
+          <option value="0.75" ${s.voice.playbackSpeed===0.75?'selected':''}>0.75×</option>
+          <option value="1" ${s.voice.playbackSpeed===1?'selected':''}>1×</option>
+          <option value="1.25" ${s.voice.playbackSpeed===1.25?'selected':''}>1.25×</option>
+        </select></div>
+    </div></div>
+
+    <div class="card"><div class="card-head"><span class="lbl">DATA</span></div><div class="card-body">
+      <div class="row" style="flex-wrap:wrap;gap:8px">
+        <button class="btn" id="st-export">EXPORT CONVERSATIONS</button>
+        <button class="btn danger" id="st-clear">CLEAR LOCAL DATA</button>
+        <button class="btn" id="st-logout">LOG OUT</button>
+      </div>
+      <p class="faint" style="font-size:12px;margin-top:10px">LOGGED IN AS ${esc((state.auth&&state.auth.name)||'USER')}${(state.auth&&state.auth.email)?' — '+esc(state.auth.email):''}${(state.auth&&state.auth.demo)?' (DEMO LOGIN)':''}</p>
+    </div></div>
+
+    <div class="card"><div class="card-head"><span class="lbl">ABOUT</span></div><div class="card-body">
+      <div class="pixel" style="font-size:11px">REXWORK</div>
+      <div class="muted" style="font-size:13px;margin-top:3px">VERSION 1.0.0 — PERSONAL AI WORKSPACE FOR ARLANDO</div>
+    </div></div>
+  </div>`;
+
+  $('#seg-theme').querySelectorAll('[data-theme]').forEach(b=>b.addEventListener('click',()=>{ state.theme=b.getAttribute('data-theme'); lsSet(LS.theme,state.theme); applyTheme(); renderSettings(); }));
+  $('#seg-font').querySelectorAll('[data-fs]').forEach(b=>b.addEventListener('click',()=>{ s.fontSize=b.getAttribute('data-fs'); saveSettings(); applyFont(); renderSettings(); }));
+  $('#st-enter').addEventListener('change',e=>{ s.enterToSend=e.target.checked; saveSettings(); });
+  $('#st-default').addEventListener('change',e=>{ s.defaultMode=e.target.value; saveSettings(); });
+  $('#st-autoread').addEventListener('change',e=>{ s.voice.autoRead=e.target.checked; saveSettings(); });
+  $('#st-speed').addEventListener('change',e=>{ s.voice.playbackSpeed=parseFloat(e.target.value); saveSettings(); });
+  $('#st-export').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify(state.conversations,null,2)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rexwork_conversations.json'; a.click(); URL.revokeObjectURL(a.href); toast('CONVERSATIONS EXPORTED');
+  });
+  $('#st-clear').addEventListener('click',()=>{
+    confirmModal('CLEAR ALL LOCAL DATA? This removes conversations, projects, memory and settings.', ()=>{
+      Object.values(LS).forEach(lsDel);
+      state.conversations=[]; state.projects=[]; state.memory={on:true,items:[]}; state.custom={about:'',respond:''};
+      state.currentId=null; state.view='chat';
+      saveConversations(); saveProjects(); saveMemory(); saveCustom();
+      renderAll(); toast('LOCAL DATA CLEARED');
+    });
+  });
+  $('#st-logout').addEventListener('click',()=>{
+    confirmModal('LOG OUT and return to the login screen?', ()=>{
+      localStorage.removeItem('rexwork_auth');
+      window.location.href = 'Main.html';
+    });
+  });
+}
+
+/* ============================================================
+   THEME
+   ============================================================ */
+function applyTheme(){
+  const th = state.theme==='system' ? (window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark') : state.theme;
+  const light = th==='light';
+  const r = document.documentElement;
+  if(light){
+    r.style.setProperty('--bg','#eef1f6');
+    r.style.setProperty('--bg-2','#e4e9f1');
+    r.style.setProperty('--surface','#ffffff');
+    r.style.setProperty('--surface-2','#f2f5fa');
+    r.style.setProperty('--surface-3','#e2e8f2');
+    r.style.setProperty('--border','#ccd4e2');
+    r.style.setProperty('--border-soft','#dde3ee');
+    r.style.setProperty('--text','#182030');
+    r.style.setProperty('--text-soft','#3a4559');
+    r.style.setProperty('--muted','#5d6a82');
+    r.style.setProperty('--faint','#8b96aa');
+    r.style.setProperty('--brand','#c77f00');
+    r.style.setProperty('--brand-dim','#e8c57a');
+  } else {
+    r.style.setProperty('--bg','#0a0c11');
+    r.style.setProperty('--bg-2','#0e1118');
+    r.style.setProperty('--surface','#12161f');
+    r.style.setProperty('--surface-2','#1a2029');
+    r.style.setProperty('--surface-3','#222936');
+    r.style.setProperty('--border','#263041');
+    r.style.setProperty('--border-soft','#1d2530');
+    r.style.setProperty('--text','#e9edf5');
+    r.style.setProperty('--text-soft','#c3c9d6');
+    r.style.setProperty('--muted','#8791a5');
+    r.style.setProperty('--faint','#5a6478');
+    r.style.setProperty('--brand','#ffb000');
+    r.style.setProperty('--brand-dim','#8a6a1a');
+  }
+}
+function applyFont(){
+  const s=state.settings.fontSize;
+  document.documentElement.dataset.font = s;
+}
+function toggleTheme(){
+  state.theme = state.theme==='dark' ? 'light' : 'dark';
+  lsSet(LS.theme,state.theme); applyTheme(); renderSettingsIfVisible();
+}
+function renderSettingsIfVisible(){ if(state.view==='settings') renderSettings(); }
+
+/* ============================================================
+   SEARCH
+   ============================================================ */
+function openSearch(){
+  $('#search-overlay').classList.add('open');
+  $('#search-input').value='';
+  $('#search-res').innerHTML = `<div class="search-res">${state.search.history.length?`<div class="sr-label">RECENT SEARCHES</div>`+state.search.history.map(h=>`<button class="sr-item" data-recent="${esc(h)}">${esc(h)}</button>`).join(''):''}</div>`;
+  setTimeout(()=>$('#search-input').focus(),10);
+}
+function closeSearch(){ $('#search-overlay').classList.remove('open'); $('#search-res').innerHTML=''; }
+function runSearch(q){
+  q=(q||'').trim().toLowerCase();
+  $('#search-res').innerHTML='';
+  if(!q){ $('#search-res').innerHTML='<div class="search-empty">TYPE TO SEARCH CHATS, PROJECTS AND FILES</div>'; return; }
+  // loading
+  $('#search-res').innerHTML='<div class="search-empty">SEARCHING...</div>';
+  setTimeout(()=>{
+    const hl = (txt)=> txt.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'),'<mark>$1</mark>');
+    const chats = state.conversations.filter(c=> c.title.toLowerCase().includes(q) || c.messages.some(m=>(m.content||'').toLowerCase().includes(q)));
+    const projs = state.projects.filter(p=> p.name.toLowerCase().includes(q));
+    const files = [];
+    state.projects.forEach(p=>p.files.forEach(f=>{ if(f.name.toLowerCase().includes(q)) files.push({name:f.name,proj:p.name}); }));
+    let html='';
+    const empty = !chats.length && !projs.length && !files.length;
+    if(chats.length){ html+='<div class="sr-label">CHATS</div>'+chats.map(c=>`<button class="sr-item" data-open="${c.id}">${hl(esc(c.title))}</button>`).join(''); }
+    if(projs.length){ html+='<div class="sr-label">PROJECTS</div>'+projs.map(p=>`<button class="sr-item" data-openproj="${p.id}">${hl(esc(p.name))}</button>`).join(''); }
+    if(files.length){ html+='<div class="sr-label">FILES</div>'+files.map(f=>`<div class="sr-item">${hl(esc(f.name))} <span class="faint">· ${esc(f.proj)}</span></div>`).join(''); }
+    if(empty) html='<div class="search-empty">NO RESULTS FOR "'+esc(q)+'"</div>';
+    $('#search-res').innerHTML=html;
+    if(empty) return;
+    $$('#search-res [data-open]').forEach(b=>b.addEventListener('click',()=>{ state.currentId=b.getAttribute('data-open'); state.view='chat'; closeSearch(); renderAll(); }));
+    $$('#search-res [data-openproj]').forEach(b=>b.addEventListener('click',()=>{ state.view='projects'; closeSearch(); renderAll(); }));
+    // record recent
+    if(!state.search.history.includes(q)){ state.search.history.unshift(q); state.search.history=state.search.history.slice(0,5); lsSet(LS.search,state.search.history); }
+  }, 180);
+}
+
+/* ============================================================
+   VOICE (record / transcribe)
+   ============================================================ */
+let mediaRecorder=null, audioChunks=[];
+async function toggleVoice(){
+  if(state.listening){ stopRecording(); return; }
+  if(!navigator.mediaDevices || !window.MediaRecorder){
+    toast('VOICE NOT SUPPORTED IN THIS BROWSER'); return;
+  }
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks=[];
+    mediaRecorder.ondataavailable = e=>audioChunks.push(e.data);
+    mediaRecorder.onstop = ()=>onRecordingStop(stream);
+    mediaRecorder.start();
+    state.listening=true;
+    showVoicePill(true);
+  }catch(e){ toast('MICROPHONE ACCESS DENIED'); }
+}
+function stopRecording(){
+  if(mediaRecorder) mediaRecorder.stop();
+}
+function onRecordingStop(stream){
+  stream.getTracks().forEach(t=>t.stop());
+  state.listening=false;
+  const blob = new Blob(audioChunks,{type:mediaRecorder.mimeType||'audio/webm'});
+  showVoicePill(false, blob);
+}
+function showVoicePill(listening, blob){
+  const box=$('.composer-box');
+  let pill=box.querySelector('.voice-pill');
+  if(!pill){ pill=el('div','voice-pill'); box.insertBefore(pill, box.querySelector('.composer-foot')); }
+  if(listening){
+    pill.innerHTML = `<span class="wave">${'<i></i>'.repeat(5)}</span> LISTENING... <span class="faint" style="font-size:11px">TAP TO STOP</span>`;
+    pill.style.cursor='pointer';
+    pill.onclick = stopRecording;
+  } else {
+    pill.innerHTML = `<span style="font-family:var(--font-pixel);font-size:8px">VOICE MESSAGE</span>
+      <button class="icon-btn" id="vp-play">${PLAY_SVG}</button>
+      <button class="icon-btn" id="vp-del">${TRASH_SVG}</button>
+      <div class="spacer"></div>
+      <button class="btn primary" id="vp-send" style="padding:6px 12px">SEND</button>`;
+    pill.onclick=null;
+    let audioUrl=null;
+    pill.querySelector('#vp-play').addEventListener('click',async ()=>{
+      if(!audioUrl){
+        // try transcribe first if backend has keys; else just play
+        if(state.backend.reachable && state.backend.keysLoaded>0){
+          const fd=new FormData(); fd.append('file', blob, 'audio.webm');
+          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',body:fd});
+          if(r.ok){ const j=await r.json(); $('#composer-input').value = (j.text||'').trim(); autoGrow(); toast('TRANSCRIBED'); pill.remove(); return; }
+        }
+        toast('TRANSCRIPTION UNAVAILABLE — PLAYING AUDIO');
+        audioUrl=URL.createObjectURL(blob);
+        const au=new Audio(audioUrl); au.playbackRate=state.settings.voice.playbackSpeed; au.play();
+      } else { const au=new Audio(audioUrl); au.play(); }
+    });
+    pill.querySelector('#vp-del').addEventListener('click',()=>pill.remove());
+    pill.querySelector('#vp-send').addEventListener('click',()=>{
+      state.attachments.push({kind:'audio',name:'VOICE.WEBM',ext:'.webm',size:blob.size,readable:false});
+      pill.remove(); renderAttachments();
+    });
+  }
+}
+
+/* ============================================================
+   SPEECH (read aloud)
+   ============================================================ */
+function speak(text){
+  if(!('speechSynthesis' in window)){ toast('READ ALOUD NOT SUPPORTED'); return; }
+  const plain = text.replace(/[#*`>_~\[\]()|]/g,'').replace(/```[\s\S]*?```/g,'').trim();
+  const u=new SpeechSynthesisUtterance(plain.slice(0,2000));
+  u.rate = state.settings.voice.playbackSpeed;
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+
+/* ============================================================
+   MODALS
+   ============================================================ */
+function openModal(html){
+  const root=$('#modal-root');
+  root.innerHTML = `<div class="overlay" id="modal-overlay"><div class="modal" role="dialog" aria-modal="true">${html}</div></div>`;
+  root.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',closeModal));
+  root.querySelector('#modal-overlay').addEventListener('click',e=>{ if(e.target.id==='modal-overlay') closeModal(); });
+  const first = root.querySelector('.modal input, .modal textarea, .modal select');
+  if(first) setTimeout(()=>first.focus(),10);
+}
+function closeModal(){ $('#modal-root').innerHTML=''; }
+function confirmModal(msg, onOk){
+  openModal(`<div class="modal-head"><span class="mh">CONFIRM</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body"><p>${msg}</p></div>
+    <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn danger" id="cf-ok">DELETE</button></div>`);
+  $('#cf-ok').addEventListener('click',()=>{ closeModal(); onOk(); });
+}
+
+/* ---------- chat / sidebar actions ---------- */
+function openChat(id){ state.currentId=id; state.view='chat'; closeSidebar(); renderAll(); }
+
+function renameChat(c){
+  openModal(`<div class="modal-head"><span class="mh">RENAME CONVERSATION</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body"><input class="input" id="rn-name" value="${esc(c.title)}"/></div>
+    <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="rn-save">SAVE</button></div>`);
+  $('#rn-save').addEventListener('click',()=>{ const v=($('#rn-name').value||'').trim(); if(v){ c.title=v; saveConversations(); closeModal(); renderAll(); toast('CONVERSATION RENAMED'); } });
+}
+function pinChat(c){ c.pinned=!c.pinned; saveConversations(); renderAll(); toast(c.pinned?'CHAT PINNED':'CHAT UNPINNED'); }
+function archiveChat(c){ c.archived=true; if(state.currentId===c.id){ state.currentId=null; } saveConversations(); renderAll(); toast('CHAT ARCHIVED'); }
+function deleteChat(c){
+  confirmModal(`DELETE "${esc(c.title)}"? This cannot be undone.`, ()=>{
+    state.conversations=state.conversations.filter(x=>x.id!==c.id);
+    if(state.currentId===c.id) state.currentId=null;
+    saveConversations(); renderAll(); toast('CHAT DELETED');
+  });
+}
+function moveChat(c){
+  openModal(`<div class="modal-head"><span class="mh">MOVE TO PROJECT</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body">
+      <button class="pop-item" data-mv=""><span class="mi-ico" style="background:var(--surface-3);color:var(--muted)">◆</span><span class="mi-txt"><span class="mi-name">NO PROJECT</span></span></button>
+      ${state.projects.map(p=>`<button class="pop-item" data-mv="${p.id}"><span class="mi-ico" style="background:${p.color}22;color:${p.color}">◆</span><span class="mi-txt"><span class="mi-name">${esc(p.name)}</span></span></button>`).join('')}
+    </div>`);
+  $$('#modal-root [data-mv]').forEach(b=>b.addEventListener('click',()=>{
+    c.projectId = b.getAttribute('data-mv') || null; saveConversations(); closeModal(); renderAll(); toast('CHAT MOVED');
+  }));
+}
+function shareChat(c){
+  const data = JSON.stringify({title:c.title, mode:c.mode, messages:c.messages.map(m=>({role:m.role,content:m.content}))},null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=c.title.replace(/[^\w]+/g,'_')+'.json'; a.click(); URL.revokeObjectURL(a.href);
+  toast('CHAT SHARED (DOWNLOADED)');
+}
+function chatMoreMenu(c, anchorEl){
+  const pop=$('#mode-pop'); // reuse as generic popover
+  pop.innerHTML = `<div class="pop-label">CHAT ACTIONS</div>
+    <button class="pop-item" data-cc="move"><span class="mi-txt"><span class="mi-name">MOVE TO PROJECT</span></span></button>
+    <button class="pop-item" data-cc="archive"><span class="mi-txt"><span class="mi-name">ARCHIVE</span></span></button>
+    <button class="pop-item" data-cc="share"><span class="mi-txt"><span class="mi-name">SHARE</span></span></button>
+    <button class="pop-item" data-cc="delete"><span class="mi-txt"><span class="mi-name" style="color:var(--red)">DELETE</span></span></button>`;
+  pop.classList.add('open');
+  positionPopover(pop, anchorEl);
+  const h=()=>{ pop.classList.remove('open'); pop.removeEventListener('click',clk); };
+  const clk=(e)=>{ const b=e.target.closest('[data-cc]'); if(!b) return; const k=b.getAttribute('data-cc'); h();
+    if(k==='move') moveChat(c); else if(k==='archive') archiveChat(c); else if(k==='share') shareChat(c); else if(k==='delete') deleteChat(c);
+  };
+  pop.addEventListener('click',clk);
+  setTimeout(()=>document.addEventListener('click',function f(e){ if(!pop.contains(e.target)){ h(); document.removeEventListener('click',f); } }),0);
+}
+
+/* ---------- message-level actions ---------- */
+function bindMessageActions(){
+  const c=currentConversation(); if(!c) return;
+  // assistant actions
+  $$('#chat-inner [data-aact]').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.closest('.msg').getAttribute('data-i');
+    const m=c.messages[i];
+    const act=b.getAttribute('data-aact');
+    if(act==='copy'){ navigator.clipboard.writeText(m.content).then(()=>toast('COPIED TO CLIPBOARD')); }
+    else if(act==='copyMd'){ navigator.clipboard.writeText(m.content).then(()=>toast('COPIED AS MARKDOWN')); }
+    else if(act==='retry'){ retryMessage(i); }
+    else if(act==='like'){ toast('FEEDBACK SAVED'); }
+    else if(act==='dislike'){ toast('FEEDBACK SAVED'); }
+    else if(act==='speak'){ speak(m.content); }
+    else if(act==='more'){ messageMoreMenu(i, m, b); }
+  }));
+  // copy buttons inside code blocks
+  $$('#chat-inner pre .copy').forEach(b=>b.addEventListener('click',()=>{
+    const code = b.closest('pre').querySelector('code');
+    navigator.clipboard.writeText(code ? code.textContent : '').then(()=>toast('COPIED TO CLIPBOARD'));
+  }));
+  // user actions
+  $$('#chat-inner [data-uact]').forEach(b=>b.addEventListener('click',()=>{
+    const i=+b.closest('.msg').getAttribute('data-i');
+    const m=c.messages[i];
+    const act=b.getAttribute('data-uact');
+    if(act==='copy'){ navigator.clipboard.writeText(m.content).then(()=>toast('COPIED TO CLIPBOARD')); }
+    else if(act==='edit'){ editUserMessage(i,m); }
+    else if(act==='del'){ c.messages.splice(i,1); saveConversations(); renderAll(); toast('MESSAGE DELETED'); }
+  }));
+}
+function retryMessage(i){
+  const c=currentConversation(); if(!c) return;
+  const prevUser = [...c.messages.slice(0,i)].reverse().find(m=>m.role==='user');
+  if(!prevUser) return;
+  c.messages = c.messages.slice(0,i); // drop this assistant + everything after
+  c.updatedAt = now();
+  renderChat();
+  regenerateFrom();
+}
+async function regenerateFrom(){
+  const c=currentConversation();
+  c.updatedAt=now();
+  const asst={role:'assistant',content:'',ts:now(),model:MODES[state.mode].modelLabel,demo:isDemo()};
+  c.messages.push(asst);
+  renderChat();
+  const history=withContext(c.messages.slice(0,-1).filter(m=>!m.demo).map(m=>({role:m.role,content:m.content})));
+  state.streaming=true; state.controller=new AbortController(); updateComposerState();
+  const res=await streamChat(state.mode, history, d=>{ asst.content+=d; throttleRender(); }, state.controller.signal);
+  state.streaming=false; state.controller=null; updateComposerState();
+  if(res.error && res.error!=='ABORTED') asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+  if(res.demo) asst.demo=true;
+  if(!asst.content) asst.content='*(empty response)*';
+  c.updatedAt=now(); saveConversations(); renderAll();
+}
+function editUserMessage(i,m){
+  openModal(`<div class="modal-head"><span class="mh">EDIT MESSAGE</span><button class="icon-btn" data-close>${X_SVG}</button></div>
+    <div class="modal-body"><textarea class="input" id="em-txt" style="min-height:110px">${esc(m.content)}</textarea></div>
+    <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="em-save">SAVE &amp; REGENERATE</button></div>`);
+  $('#em-save').addEventListener('click',async ()=>{
+    const v=$('#em-txt').value;
+    const c=currentConversation();
+    m.content=v;
+    // remove all messages after i
+    c.messages = c.messages.slice(0,i+1);
+    closeModal();
+    await regenerateFrom();
+  });
+}
+function messageMoreMenu(i, m, anchorEl){
+  const pop=$('#mode-pop');
+  pop.innerHTML = `<div class="pop-label">MORE</div>
+    <button class="pop-item" data-mm="copy"><span class="mi-txt"><span class="mi-name">COPY AS MARKDOWN</span></span></button>
+    <button class="pop-item" data-mm="canvas"><span class="mi-txt"><span class="mi-name">OPEN IN CANVAS</span></span></button>
+    <button class="pop-item" data-mm="saveproj"><span class="mi-txt"><span class="mi-name">SAVE TO PROJECT</span></span></button>
+    <button class="pop-item" data-mm="share"><span class="mi-txt"><span class="mi-name">SHARE</span></span></button>`;
+  pop.classList.add('open'); positionPopover(pop, anchorEl);
+  const h=()=>{ pop.classList.remove('open'); pop.removeEventListener('click',clk); };
+  const clk=e=>{ const b=e.target.closest('[data-mm]'); if(!b) return; const k=b.getAttribute('data-mm'); h();
+    if(k==='copy') navigator.clipboard.writeText(m.content).then(()=>toast('COPIED AS MARKDOWN'));
+    else if(k==='canvas'){ openCanvas(m.content, 'FROM CHAT', state.mode==='coding'?'code':'doc'); }
+    else if(k==='saveproj'){ moveChat(currentConversation()); }
+    else if(k==='share'){ shareChat(currentConversation()); }
+  };
+  pop.addEventListener('click',clk);
+}
+
+/* ---------- sidebar / nav helpers ---------- */
+function closeSidebar(){ state.sidebarOpen=false; $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); }
+function toggleSidebar(){ state.sidebarOpen=!state.sidebarOpen; $('#sidebar').classList.toggle('open',state.sidebarOpen); $('#scrim').classList.toggle('show',state.sidebarOpen); }
+
+/* ============================================================
+   GLOBAL EVENTS
+   ============================================================ */
+function closeAllPopovers(){ $('#mode-pop').classList.remove('open'); $('#tools-pop').classList.remove('open'); $('#mode-chip').setAttribute('aria-expanded','false'); }
+function closeComposerSubMenus(){ closeAllPopovers(); }
+
+function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); updateComposerState(); }
+
+function bindEvents(){
+  // sidebar
+  $('#btn-new').addEventListener('click',()=>{ newChat(); });
+  $('#btn-search').addEventListener('click',openSearch);
+  $('#tb-search').addEventListener('click',openSearch);
+  $('#tb-menu').addEventListener('click',toggleSidebar);
+  $('#scrim').addEventListener('click',closeSidebar);
+  $('#tb-canvas').addEventListener('click',()=>{ if(state.canvas.open) closeCanvas(); else openCanvas(); });
+  $('#tb-theme').addEventListener('click',toggleTheme);
+  $('#btn-settings').addEventListener('click',()=>{ state.view='settings'; closeSidebar(); renderAll(); });
+  $('#btn-settings-row').addEventListener('click',e=>{ if(!e.target.closest('#btn-settings')){ state.view='settings'; closeSidebar(); renderAll(); } });
+  $('#btn-new-proj').addEventListener('click',()=>{ state.view='projects'; renderAll(); });
+
+  // mode chip
+  $('#mode-chip').addEventListener('click',toggleModePop);
+  // mode popover items (delegate)
+  $('#mode-pop').addEventListener('click',e=>{
+    const b=e.target.closest('[data-mode]'); if(!b) return;
+    state.mode=b.getAttribute('data-mode'); saveSelectedMode(); closeAllPopovers(); renderAll();
+  });
+
+  // tools
+  $('#btn-tools').addEventListener('click',toggleToolsPop);
+  $('#tools-pop').addEventListener('click',e=>{
+    const b=e.target.closest('[data-tool]'); if(!b) return;
+    handleTool(b.getAttribute('data-tool'));
+  });
+
+  // composer
+  const input=$('#composer-input');
+  input.addEventListener('input',autoGrow);
+  input.addEventListener('keydown',e=>{
+    if(e.key==='Enter' && !e.shiftKey && state.settings.enterToSend){ e.preventDefault(); sendMessage(); }
+  });
+  $('#btn-send').addEventListener('click',()=>{ if(state.streaming) stopGenerating(); else sendMessage(); });
+  $('#btn-attach').addEventListener('click',()=>$('#file-input').click());
+  $('#file-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
+  $('#image-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
+  $('#btn-voice').addEventListener('click',toggleVoice);
+
+  // drag & drop
+  ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{ e.preventDefault(); if(e.dataTransfer && e.dataTransfer.types.includes('Files')) $('#composer-inner').style.outline='1px dashed var(--brand)'; }));
+  ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,()=>{ $('#composer-inner').style.outline='none'; }));
+  document.addEventListener('drop',e=>{ e.preventDefault(); if(e.dataTransfer && e.dataTransfer.files.length){ addFiles(e.dataTransfer.files); } });
+
+  // paste images
+  document.addEventListener('paste',e=>{
+    const items = e.clipboardData && e.clipboardData.items;
+    if(!items) return;
+    const imgs=[];
+    for(const it of items){ if(it.type && it.type.startsWith('image/')){ const f=it.getAsFile(); if(f) imgs.push(f); } }
+    if(imgs.length){ addFiles(imgs); }
+  });
+
+  // welcome suggestions (delegate)
+  $('#chat-inner').addEventListener('click',e=>{
+    const sb=e.target.closest('[data-suggest]'); if(sb){ $('#composer-input').value=sb.getAttribute('data-suggest'); autoGrow(); }
+    const open=e.target.closest('[data-open]'); if(open){ /* not used here */ }
+  });
+
+  // sidebar item actions (delegate)
+  $('#sidebar').addEventListener('click',e=>{
+    const actBtn=e.target.closest('[data-act]');
+    const item=e.target.closest('[data-type="chat"]');
+    const proj=e.target.closest('[data-type="proj"]');
+    if(proj){ state.view='projects'; closeSidebar(); renderAll(); return; }
+    if(!item) return;
+    const id=item.getAttribute('data-id');
+    const c=state.conversations.find(x=>x.id===id);
+    if(!c) return;
+    if(actBtn){
+      const act=actBtn.getAttribute('data-act');
+      if(act==='pin') pinChat(c);
+      else if(act==='rename') renameChat(c);
+      else if(act==='archive') archiveChat(c);
+      else if(act==='more') chatMoreMenu(c, actBtn);
+    } else {
+      openChat(id);
+    }
+  });
+
+  // detach chips
+  $('#attach-row').addEventListener('click',e=>{
+    const b=e.target.closest('[data-detach]'); if(!b) return;
+    state.attachments.splice(+b.getAttribute('data-detach'),1); renderAttachments();
+  });
+
+  // canvas actions (delegate)
+  $('#canvas-col').addEventListener('click',e=>{
+    const b=e.target.closest('[data-cact]'); if(!b) return;
+    const k=b.getAttribute('data-cact');
+    if(k==='undo') canvasUndo(); else if(k==='redo') canvasRedo(); else if(k==='toggle') toggleCanvasPreview();
+    else if(k==='export') exportCanvas(); else if(k==='close') closeCanvas();
+  });
+
+  // search
+  $('#search-input').addEventListener('input',debounce(e=>runSearch(e.target.value),200));
+  $('#search-input').addEventListener('keydown',e=>{ if(e.key==='Escape') closeSearch(); });
+  $('#search-overlay').addEventListener('click',e=>{ if(e.target.id==='search-overlay') closeSearch(); });
+  $('#search-res').addEventListener('click',e=>{
+    const r=e.target.closest('[data-recent]'); if(r){ $('#search-input').value=r.getAttribute('data-recent'); runSearch(r.getAttribute('data-recent')); }
+  });
+
+  // global keys
+  document.addEventListener('keydown',e=>{
+    const mod = e.ctrlKey||e.metaKey;
+    if(mod && e.key.toLowerCase()==='k'){ e.preventDefault(); openSearch(); }
+    else if(mod && e.shiftKey && e.key.toLowerCase()==='o'){ e.preventDefault(); newChat(); }
+    else if(mod && e.key==='/'){ e.preventDefault(); $('#composer-input').focus(); }
+    else if(e.key==='Escape'){
+      if($('#search-overlay').classList.contains('open')) closeSearch();
+      else if($('#modal-root').innerHTML) closeModal();
+      else closeAllPopovers();
+    }
+  });
+
+  // close popovers on outside click
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#mode-chip') && !e.target.closest('#mode-pop')) { /* mode pop closes via its own logic */ }
+    if(!e.target.closest('#btn-tools') && !e.target.closest('#tools-pop')) $('#tools-pop').classList.remove('open');
+  });
+
+  window.addEventListener('resize',()=>{ if(window.innerWidth>880) closeSidebar(); });
+}
+
+function newChat(){
+  state.currentId=null; state.view='chat'; state.attachments=[];
+  $('#composer-input').value=''; autoGrow();
+  renderAll(); closeSidebar();
+  setTimeout(()=>$('#composer-input').focus(),10);
+}
+
+/* ---------- auth (login page: Main.html) ---------- */
+function authProfile(){
+  try{ return JSON.parse(localStorage.getItem('rexwork_auth')||'null'); }catch(e){ return null; }
+}
+function applyAuthToUI(){
+  const auth = state.auth || authProfile();
+  if(!auth) return;
+  const name = String(auth.name||'USER').toUpperCase();
+  const who = document.querySelector('.user-row .who');
+  if(who) who.textContent = name;
+  const av = document.querySelector('.user-row .avatar');
+  if(av) av.textContent = name[0] || 'U';
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+async function boot(){
+  // auth gate: belum login -> lempar ke halaman login dulu
+  const auth = authProfile();
+  if(!auth || !auth.provider){ window.location.replace('Main.html'); return; }
+  state.auth = auth;
+  loadAll();
+  if(state.mode && MODES[state.mode]){} else state.mode='chat';
+  applyTheme();
+  applyFont();
+  bindEvents();
+  renderAll();
+  applyAuthToUI();
+  autoGrow();
+  await checkBackend();
+  renderModePopover();
+  renderAll();
+}
+
+/* ---------- inline SVG icon set ---------- */
+const svg=(p,extra='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${p}</svg>`;
+const COPY_SVG=svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
+const EDIT_SVG=svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>');
+const TRASH_SVG=svg('<path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>');
+const RETRY_SVG=svg('<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>');
+const LIKE_SVG=svg('<path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>');
+const DISLIKE_SVG=svg('<path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h3a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-3"/>');
+const VOL_SVG=svg('<path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>');
+const MD_SVG=svg('<path d="M4 4h16v16H4z" /><path d="M7 8h10M7 12h10M7 16h6"/>');
+const DOTS_SVG=svg('<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>');
+const PIN_SVG=svg('<path d="M12 17v5M5 10l7-7 7 7-7 7z"/>');
+const MODE_ICONS={
+  chat:svg('<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>'),
+  coding:svg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>'),
+  research:svg('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>'),
+  vision:svg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>')
+};
+const ARCH_SVG=svg('<rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>');
+const X_SVG=svg('<path d="M18 6 6 18M6 6l12 12"/>');
+const PLAY_SVG=svg('<path d="M6 4l14 8-14 8z"/>');
+const UNDO_SVG=svg('<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-15-6.7L3 13"/>');
+const REDO_SVG=svg('<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 15-6.7L21 13"/>');
+const EYE_SVG=svg('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>');
+const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>');
+
+boot();
+</script>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a595cac34b6222a1',t:'MTc5NDQ4OTE4NQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a595cac34b6222a1',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

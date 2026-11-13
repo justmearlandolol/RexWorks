@@ -63,14 +63,14 @@ MODES: Dict[str, Dict[str, Any]] = {
     "chat": {
         "key": "chat",
         "name": "REXWORK CHAT",
-        "model": "llama-3.3-70b-versatile",
-        "desc": "General conversations",
-        "modelLabel": "Llama 3.3 70B Versatile",
-        "purpose": "Explanations, writing, brainstorming, summaries, everyday help.",
+        "model": "openai/gpt-oss-120b",
+        "desc": "General conversations, search, vision & code",
+        "modelLabel": "GPT-OSS 120B",
+        "purpose": "General conversations, web research, image vision, and code generation.",
         "system": (
-            "You are RexWork Chat, a helpful, warm and precise AI assistant "
-            "inside Arlando's personal workspace. Respond in clear, readable "
-            "Markdown. Be concise unless asked for depth."
+            "You are RexWork Chat, an elite AI assistant powered by GPT-OSS 120B. "
+            "You have full capabilities for conversational reasoning, web search research, "
+            "image analysis/vision, and software engineering. Respond in clear Markdown."
         ),
     },
 
@@ -78,41 +78,13 @@ MODES: Dict[str, Dict[str, Any]] = {
         "key": "coding",
         "name": "REXWORK CODING",
         "model": "openai/gpt-oss-120b",
-        "desc": "Programming and debugging",
+        "desc": "Programming, workspace files & debugging",
         "modelLabel": "GPT-OSS 120B",
-        "purpose": "Programming, debugging, refactoring, code review, architecture.",
+        "purpose": "Full-stack programming, workspace file management, refactoring, code review, and debugging.",
         "system": (
-            "You are RexWork Coding, an expert software engineer. Explain "
-            "changes, give complete code blocks, and prefer correctness and "
-            "clarity. Use Markdown with fenced code blocks."
-        ),
-    },
-
-    "research": {
-        "key": "research",
-        "name": "REXWORK RESEARCH",
-        "model": "groq/compound",
-        "desc": "Web research and tools",
-        "modelLabel": "Groq Compound",
-        "purpose": "Research, current information, multi-step, source-oriented answers.",
-        "tool_capable": True,
-        "system": (
-            "You are RexWork Research. Provide well-sourced, up-to-date answers "
-            "with clear citations. Never invent sources or fabricate citations."
-        ),
-    },
-
-    "vision": {
-        "key": "vision",
-        "name": "REXWORK VISION",
-        "model": VISION_OVERRIDE or None,
-        "desc": "Image understanding",
-        "modelLabel": VISION_OVERRIDE or "No compatible vision model configured",
-        "purpose": "Image understanding (capability-dependent).",
-        "vision": True,
-        "system": (
-            "You are RexWork Vision. Describe and analyze the provided image "
-            "carefully and accurately."
+            "You are RexWork Coding, an expert software engineer powered by GPT-OSS 120B. "
+            "You assist with full-stack coding, workspace files, debugging, refactoring, and code review. "
+            "When outputting code, provide complete, production-ready code blocks with file names."
         ),
     },
 }
@@ -720,6 +692,42 @@ async def chat(request: Request):
         }
     )
 
+
+# ============================================================
+# BASH EXECUTION (CODING WORKSPACE)
+# ============================================================
+
+@app.post("/api/bash")
+async def execute_bash(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        return error_response(400, "INVALID_JSON", "Invalid JSON body.")
+
+    command = (body.get("command") or "").strip()
+    if not command:
+        return error_response(400, "EMPTY_COMMAND", "No command provided.")
+
+    import subprocess
+    try:
+        proc = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd="/home/user" if os.path.exists("/home/user") else None
+        )
+        return {
+            "ok": True,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+            "returncode": proc.returncode
+        }
+    except subprocess.TimeoutExpired:
+        return error_response(408, "TIMEOUT", "Command timed out (15s limit).")
+    except Exception as e:
+        return error_response(500, "EXECUTION_ERROR", str(e))
 
 # ============================================================
 # RESEARCH SEARCH

@@ -504,6 +504,51 @@ textarea.input{ resize:vertical; min-height:90px; }
   border-color:var(--brand); background:rgba(255,176,0,.15); color:var(--brand); font-weight:600;
 }
 
+
+.cot-wrap{
+  margin-bottom:12px; border:1px solid var(--border); border-radius:6px;
+  background:var(--surface-2); overflow:hidden;
+}
+.cot-toggle{
+  width:100%; display:flex; align-items:center; gap:8px; padding:7px 12px;
+  background:none; border:none; color:var(--muted); font-family:var(--font-mono);
+  font-size:11.5px; cursor:pointer; text-align:left; user-select:none;
+}
+.cot-toggle:hover{ color:var(--text); background:rgba(255,255,255,.02); }
+.cot-icon{ font-size:12px; }
+.cot-label{ flex:1; font-weight:500; letter-spacing:.3px; }
+.cot-arrow{ transition:transform .2s; }
+.cot-wrap.open .cot-arrow{ transform:rotate(180deg); }
+.cot-body{
+  display:none; padding:10px 14px; border-top:1px solid var(--border-soft);
+  font-size:12px; line-height:1.5; color:var(--muted); font-family:var(--font-mono);
+  background:rgba(0,0,0,.2); max-height:280px; overflow-y:auto;
+}
+.cot-wrap.open .cot-body{ display:block; }
+.agent-pills-row{
+  display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;
+}
+.agent-pill{
+  display:inline-flex; align-items:center; gap:6px; padding:3px 9px;
+  border-radius:12px; font-family:var(--font-mono); font-size:11px;
+  border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+  line-height:1.4; user-select:none;
+}
+.agent-pill.bash{ border-color:rgba(102,212,138,.3); background:rgba(102,212,138,.08); color:#66d48a; }
+.agent-pill.explored{ border-color:rgba(77,208,225,.3); background:rgba(77,208,225,.08); color:#4dd0e1; }
+.agent-pill.read{ border-color:rgba(171,139,240,.3); background:rgba(171,139,240,.08); color:#ab8bf0; }
+.agent-pill.created{ border-color:rgba(255,176,0,.3); background:rgba(255,176,0,.08); color:var(--brand); }
+.agent-pill .ap-ico{ font-size:11px; }
+.thinking-indicator{
+  display:inline-flex; align-items:center; gap:8px; padding:6px 12px;
+  background:rgba(255,176,0,.08); border:1px solid rgba(255,176,0,.25);
+  border-radius:16px; font-family:var(--font-mono); font-size:11px;
+  color:var(--brand); margin-bottom:10px; animation:pulse-glow 1.5s infinite;
+}
+@keyframes pulse-glow{
+  0%,100%{ opacity:.75; } 50%{ opacity:1; }
+}
+
 </style>
 </head>
 <body>
@@ -1272,19 +1317,7 @@ function codingWorkspaceHTML(){
         </div>
       </div>
 
-      <div class="ws-terminal">
-        <div class="term-head">
-          <span>REXWORK BASH TERMINAL (${state.backend.reachable ? 'ONLINE' : 'STANDBY'})</span>
-          <button type="button" class="btn" id="ws-term-clear-btn" style="padding:2px 8px; font-size:9px; background:none; border:none; color:var(--muted); cursor:pointer;">CLEAR</button>
-        </div>
-        <div class="term-body" id="ws-term-log">
-          ${(state.terminalLogs || []).map(l => `<div class="term-line">${esc(l)}</div>`).join('')}
-        </div>
-        <div class="term-input-row">
-          <span class="term-prompt">rexwork:~$</span>
-          <input type="text" id="ws-term-in" class="term-input" placeholder="bash command (e.g. ls, cat main.py, clear, python)..." autocomplete="off" />
-        </div>
-      </div>
+
     </div>
   `;
 }
@@ -1543,12 +1576,54 @@ function messageHTML(m, i, c){
   }
   const demoBadge = m.demo ? '<span class="msg-badge demo">DEMO</span>' : '';
   const modelBadge = m.model ? `<span class="msg-badge model">${esc(m.model)}</span>` : '';
+  
+  let rawContent = m.content || '';
+  let cotHTML = '';
+  let pillsHTML = '';
+
+  const thinkMatch = rawContent.match(/<think>([\s\S]*?)<\/think>/i);
+  if(thinkMatch){
+    const thoughtText = thinkMatch[1].trim();
+    rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
+    if(thoughtText){
+      cotHTML = '<div class="cot-wrap"><button type="button" class="cot-toggle" data-cot-toggle><span class="cot-icon">💭</span><span class="cot-label">Thought Process</span><span class="cot-arrow">▾</span></button><div class="cot-body">' + renderMarkdown(thoughtText) + '</div></div>';
+    }
+  } else if(rawContent.startsWith('<think>')){
+    const thoughtText = rawContent.replace('<think>', '').trim();
+    rawContent = '';
+    cotHTML = '<div class="thinking-indicator"><span>💭 Thinking &amp; reasoning...</span></div><div class="cot-wrap open"><div class="cot-body" style="display:block;">' + esc(thoughtText) + '</div></div>';
+  }
+
+  const actionPills = [];
+  rawContent = rawContent.replace(/\[bash:\s*([^\]]+)\]/gi, function(match, cmd){
+    actionPills.push('<span class="agent-pill bash"><span class="ap-ico">💻</span><span class="ap-txt">bash: ' + esc(cmd.trim()) + '</span></span>');
+    return '';
+  });
+  rawContent = rawContent.replace(/\[explored:\s*([^\]]+)\]/gi, function(match, info){
+    actionPills.push('<span class="agent-pill explored"><span class="ap-ico">🔍</span><span class="ap-txt">explored: ' + esc(info.trim()) + '</span></span>');
+    return '';
+  });
+  rawContent = rawContent.replace(/\[read:\s*([^\]]+)\]/gi, function(match, file){
+    actionPills.push('<span class="agent-pill read"><span class="ap-ico">📖</span><span class="ap-txt">read: ' + esc(file.trim()) + '</span></span>');
+    return '';
+  });
+  rawContent = rawContent.replace(/\[created:\s*([^\]]+)\]/gi, function(match, file){
+    actionPills.push('<span class="agent-pill created"><span class="ap-ico">✍️</span><span class="ap-txt">created: ' + esc(file.trim()) + '</span></span>');
+    return '';
+  });
+
+  if(actionPills.length > 0){
+    pillsHTML = '<div class="agent-pills-row">' + actionPills.join('') + '</div>';
+  }
+
+  const renderedBody = cotHTML + pillsHTML + renderMarkdown(rawContent.trim());
+
   return `<div class="msg assistant" data-i="${i}">
     <div class="role-ico">R</div>
     <div class="body">
       <div class="who">REXWORK ${demoBadge}${modelBadge}</div>
       ${m.sources ? renderSources(m.sources, m.demo) : ''}
-      <div class="md">${renderMarkdown(m.content)}</div>
+      <div class="md">${renderedBody}</div>
       <div class="msg-acts">
         <button class="icon-btn" data-aact="copy" title="Copy">${COPY_SVG}</button>
         <button class="icon-btn" data-aact="copyMd" title="Copy as Markdown">${MD_SVG}</button>
@@ -2469,6 +2544,12 @@ function chatMoreMenu(c, anchorEl){
 
 
 function bindMessageActions(){
+  $$('[data-cot-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const wrap = btn.closest('.cot-wrap');
+      if(wrap) wrap.classList.toggle('open');
+    });
+  });
   $$('[data-add-ws]').forEach(btn => {
     btn.addEventListener('click', () => {
       const codeBlock = btn.closest('.body').querySelector('pre code');
@@ -2835,5 +2916,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59c56cfe8651005',t:'MTc5NDU1NzgzNg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59c56cfe8651005',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59c732eb89c5d5e',t:'MTc5NDU1ODk5OA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59c732eb89c5d5e',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

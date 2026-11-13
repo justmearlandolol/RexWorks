@@ -10,8 +10,6 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 
 :root{
@@ -542,23 +540,7 @@ textarea.input{ resize:vertical; min-height:90px; }
 'use strict';
 
 
-const SUPABASE_URL = 'https://fdlklzveockeibcmijmz.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq';
 
-let supabaseClient = null;
-try {
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    });
-  }
-} catch (e) {
-  console.error('Supabase init error in index.html:', e);
-}
 
 
 const LS = {
@@ -1904,12 +1886,9 @@ function renderSettings(){
     });
   });
   $('#st-logout').addEventListener('click',()=>{
-    confirmModal('LOG OUT and return to the login screen?', async ()=>{
-      try{
-        if(supabaseClient) await supabaseClient.auth.signOut();
-      }catch(e){}
+    confirmModal('LOG OUT and return to the login screen?', ()=>{
       localStorage.removeItem('rexwork_auth');
-      window.location.href = 'Main.html';
+      window.location.href = 'Main.html?logout=1';
     });
   });
 }
@@ -2369,44 +2348,6 @@ function authProfile(){
   try{ return JSON.parse(localStorage.getItem('rexwork_auth')||'null'); }catch(e){ return null; }
 }
 
-async function resolveAuth(){
-  
-  if(supabaseClient){
-    try{
-      const { data: { session }, error } = await supabaseClient.auth.getSession();
-      if(session && session.user){
-        const u = session.user;
-        const profile = {
-          provider: 'google',
-          id: u.id,
-          email: u.email || '',
-          name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email ? u.email.split('@')[0] : 'User'),
-          avatar: u.user_metadata?.avatar_url || u.user_metadata?.picture || '',
-          demo: false,
-          ts: Date.now()
-        };
-        localStorage.setItem('rexwork_auth', JSON.stringify(profile));
-
-        
-        if(window.location.search.includes('code=') || window.location.hash.includes('access_token')){
-          const cleanUrl = window.location.origin + window.location.pathname;
-          window.history.replaceState(null, '', cleanUrl);
-        }
-        return profile;
-      }
-    }catch(err){
-      console.warn('Supabase auth resolve error:', err);
-    }
-  }
-
-  
-  const cached = authProfile();
-  if(cached && cached.provider){
-    return cached;
-  }
-  return null;
-}
-
 function applyAuthToUI(){
   const auth = state.auth || authProfile();
   if(!auth) return;
@@ -2432,7 +2373,7 @@ function applyAuthToUI(){
 
 async function boot(){
   
-  const auth = await resolveAuth();
+  const auth = authProfile();
   if(!auth || !auth.provider){
     window.location.replace('Main.html');
     return;
@@ -2482,5 +2423,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59a87e7b969f93b',t:'MTc5NDUzODg3Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59a87e7b969f93b',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59a96bf48cdfe07',t:'MTc5NDUzOTQ4NA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59a96bf48cdfe07',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

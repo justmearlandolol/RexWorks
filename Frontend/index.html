@@ -3,13 +3,20 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<!-- DEPLOY: isi content dengan URL backend Vercel, mis. https://rexwork-api.vercel.app
+     (kosongkan untuk dev lokal — Same origin / fallback otomatis) -->
+<meta name="rexwork-api" content="" />
 <meta name="color-scheme" content="dark light" />
-<meta name="rexwork-api" content="https://rexworks-backend.vercel.app/" />
 <title>RexWork — One workspace. Every way to think.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!-- Supabase JS Client v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+/* ============================================================
+   REXWORK — PIXEL IDENTITY / BASE
+   ============================================================ */
 :root{
   --bg:#0a0c11;
   --bg-2:#0e1118;
@@ -554,6 +561,27 @@ textarea.input{ resize:vertical; min-height:90px; }
    ============================================================ */
 'use strict';
 
+/* ============================================================
+   SUPABASE CLIENT CONFIG (Publishable Key)
+   ============================================================ */
+const SUPABASE_URL = 'https://fdlklzveockeibcmijmz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq';
+
+let supabaseClient = null;
+try {
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
+  }
+} catch (e) {
+  console.error('Supabase init error in index.html:', e);
+}
+
 /* ---------- constants ---------- */
 const LS = {
   conv:'rexwork_conversations', recent:'rexwork_recent_chats', pinned:'rexwork_pinned_chats',
@@ -680,11 +708,15 @@ function loadAll(){
 /* ============================================================
    BACKEND
    ============================================================ */
-/* Base URL backend API. '' = same origin (saat index.html diserve FastAPI).
-   Kalau index.html dibuka lewat server lain (mis. Live Server :5500),
-   otomatis fallback nyoba backend di 127.0.0.1:8000. */
+/* Base URL backend API. '' = same origin.
+   Lokal: fallback otomatis ke uvicorn di 127.0.0.1:8000.
+   Produksi (hosting terpisah): fallback ke URL di <meta name="rexwork-api"> */
+const IS_LOCAL_HOST = ['localhost', '127.0.0.1'].includes(location.hostname);
+const META_API_BASE = ((document.querySelector('meta[name="rexwork-api"]') || {}).content || '').trim().replace(/\/+$/, '');
 let API_BASE = '';
-const API_FALLBACK = 'http://127.0.0.1:8000';
+const API_FALLBACK = IS_LOCAL_HOST
+  ? 'http://127.0.0.1:8000'
+  : META_API_BASE;
 
 async function probeHealth(base){
   const r = await fetch(base + '/api/health', {signal:AbortSignal.timeout(4000)});
@@ -1690,7 +1722,10 @@ function renderSettings(){
     });
   });
   $('#st-logout').addEventListener('click',()=>{
-    confirmModal('LOG OUT and return to the login screen?', ()=>{
+    confirmModal('LOG OUT and return to the login screen?', async ()=>{
+      try{
+        if(supabaseClient) await supabaseClient.auth.signOut();
+      }catch(e){}
       localStorage.removeItem('rexwork_auth');
       window.location.href = 'Main.html';
     });
@@ -2159,10 +2194,49 @@ function newChat(){
   setTimeout(()=>$('#composer-input').focus(),10);
 }
 
-/* ---------- auth (login page: Main.html) ---------- */
+/* ---------- auth (login page: Main.html + Supabase) ---------- */
 function authProfile(){
   try{ return JSON.parse(localStorage.getItem('rexwork_auth')||'null'); }catch(e){ return null; }
 }
+
+async function resolveAuth(){
+  // A. Cek Supabase session (otomatis parse hash / code dari Google redirect)
+  if(supabaseClient){
+    try{
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+      if(session && session.user){
+        const u = session.user;
+        const profile = {
+          provider: 'google',
+          id: u.id,
+          email: u.email || '',
+          name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email ? u.email.split('@')[0] : 'User'),
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.picture || '',
+          demo: false,
+          ts: Date.now()
+        };
+        localStorage.setItem('rexwork_auth', JSON.stringify(profile));
+
+        // Bersihkan address bar dari hash / query param OAuth agar rapi
+        if(window.location.search.includes('code=') || window.location.hash.includes('access_token')){
+          const cleanUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState(null, '', cleanUrl);
+        }
+        return profile;
+      }
+    }catch(err){
+      console.warn('Supabase auth resolve error:', err);
+    }
+  }
+
+  // B. Fallback ke cached profile di localStorage
+  const cached = authProfile();
+  if(cached && cached.provider){
+    return cached;
+  }
+  return null;
+}
+
 function applyAuthToUI(){
   const auth = state.auth || authProfile();
   if(!auth) return;
@@ -2170,16 +2244,21 @@ function applyAuthToUI(){
   const who = document.querySelector('.user-row .who');
   if(who) who.textContent = name;
   const av = document.querySelector('.user-row .avatar');
-  if(av) av.textContent = name[0] || 'U';
+  if(av){
+    if(auth.avatar){
+      av.innerHTML = `<img src="${escapeHtml(auth.avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.onerror=null;this.parentNode.textContent='${escapeHtml(name[0]||'U')}';"/>`;
+    } else {
+      av.textContent = name[0] || 'U';
+    }
+  }
 }
-
-/* ============================================================
-   BOOT
-   ============================================================ */
 async function boot(){
-  // auth gate: belum login -> lempar ke halaman login dulu
-  const auth = authProfile();
-  if(!auth || !auth.provider){ window.location.replace('Main.html'); return; }
+  // auth gate: verifikasi session Supabase / token Google redirect
+  const auth = await resolveAuth();
+  if(!auth || !auth.provider){
+    window.location.replace('Main.html');
+    return;
+  }
   state.auth = auth;
   loadAll();
   if(state.mode && MODES[state.mode]){} else state.mode='chat';
@@ -2194,7 +2273,6 @@ async function boot(){
   renderAll();
 }
 
-/* ---------- inline SVG icon set ---------- */
 const svg=(p,extra='')=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${p}</svg>`;
 const COPY_SVG=svg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>');
 const EDIT_SVG=svg('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>');
@@ -2222,5 +2300,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a595cac34b6222a1',t:'MTc5NDQ4OTE4NQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a595cac34b6222a1',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

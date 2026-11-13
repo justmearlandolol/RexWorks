@@ -321,6 +321,26 @@ const SUPABASE_URL = 'https://fdlklzveockeibcmijmz.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq';
 const AUTH_KEY = 'rexwork_auth';
 
+let sbClient = null;
+function getSupabase(){
+  if(sbClient) return sbClient;
+  const sdk = window.supabase;
+  if(sdk && typeof sdk.createClient === 'function'){
+    try{
+      sbClient = sdk.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: true
+        }
+      });
+    }catch(e){
+      console.error(e);
+    }
+  }
+  return sbClient;
+}
+
 const emailInput = document.getElementById('email-input');
 const btnContinue = document.getElementById('btn-continue');
 const btnGoogle = document.getElementById('btn-google');
@@ -346,41 +366,29 @@ function saveAuthAndEnter(profile){
   location.replace('index.html');
 }
 
-let supabase = null;
-try {
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true
-      }
-    });
-  }
-} catch (e) {}
-
 const isLogout = window.location.search.includes('logout=1');
 
 async function handleAuthFlow(){
+  const sb = getSupabase();
   if (isLogout) {
     localStorage.removeItem(AUTH_KEY);
-    if (supabase) {
-      try { await supabase.auth.signOut(); } catch(e){}
+    if (sb) {
+      try { await sb.auth.signOut(); } catch(e){}
     }
     window.history.replaceState(null, '', window.location.pathname);
     return;
   }
 
-  if (supabase) {
+  if (sb) {
     try {
-      const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await sb.auth.getSession();
       if (session && session.user) {
         processUserSession(session.user);
         return;
       }
     } catch (e) {}
 
-    supabase.auth.onAuthStateChange((event, session) => {
+    sb.auth.onAuthStateChange((event, session) => {
       if (session && session.user) {
         processUserSession(session.user);
       }
@@ -448,10 +456,11 @@ btnContinue.addEventListener('click', async () => {
   setStatus('CONNECTING…');
 
   const redirectUrl = window.location.origin + window.location.pathname;
+  const sb = getSupabase();
 
-  if (supabase) {
+  if (sb) {
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error } = await sb.auth.signInWithOtp({
         email: email,
         options: {
           emailRedirectTo: redirectUrl
@@ -480,9 +489,10 @@ btnContinue.addEventListener('click', async () => {
 
 btnGoogle.addEventListener('click', async () => {
   btnGoogle.disabled = true;
-  if (!supabase) {
-    setStatus('SUPABASE CLIENT NOT READY', 'var(--red)');
-    setTimeout(() => { btnGoogle.disabled = false; }, 1500);
+  const sb = getSupabase();
+  if (!sb) {
+    setStatus('SUPABASE CLIENT NOT READY — RETRYING…', 'var(--red)');
+    setTimeout(() => { btnGoogle.disabled = false; }, 1200);
     return;
   }
 
@@ -490,7 +500,7 @@ btnGoogle.addEventListener('click', async () => {
   try {
     const redirectUrl = window.location.origin + window.location.pathname;
 
-    const { error } = await supabase.auth.signInWithOAuth({
+    const { error } = await sb.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
@@ -524,5 +534,5 @@ btnBypass.addEventListener('click', () => {
   }, 350);
 });
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59a98a70802fe07',t:'MTc5NDUzOTU2Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59a98a70802fe07',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>

@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<!-- Supabase JS Client v2 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0a0c11;
@@ -21,6 +23,7 @@
   --faint:#5a6478;
   --brand:#ffb000;
   --red:#ff6b6b;
+  --green:#51cf66;
   --font-pixel:'Press Start 2P','VT323','Courier New',monospace;
   --font-mono:'IBM Plex Mono','VT323',ui-monospace,monospace;
   --font-body:'VT323','Courier New',monospace;
@@ -53,11 +56,11 @@ body::after{
 
 .card{
   position:relative; z-index:3;
-  width:min(400px, 100%);
+  width:min(410px, 100%);
   background:linear-gradient(180deg, var(--surface), var(--bg-2));
   border:1px solid var(--border);
   border-radius:6px;
-  padding:44px 36px 32px;
+  padding:44px 34px 30px;
   text-align:center;
   box-shadow:0 0 0 1px rgba(255,176,0,.06), 0 24px 70px rgba(0,0,0,.6), 0 0 90px rgba(255,176,0,.05);
 }
@@ -84,11 +87,11 @@ h1 .cur{ color:var(--brand); animation:blink 1.1s steps(1) infinite; }
 @keyframes blink{ 50%{ opacity:0; } }
 .tag{
   font-family:var(--font-pixel); font-size:7.5px; letter-spacing:2px; line-height:2.1;
-  color:var(--muted); margin-bottom:34px;
+  color:var(--muted); margin-bottom:32px;
 }
 
 .divider{
-  border-top:1px dashed var(--border); margin:0 0 28px;
+  border-top:1px dashed var(--border); margin:0 0 26px;
   position:relative;
 }
 .divider span{
@@ -108,25 +111,38 @@ h1 .cur{ color:var(--brand); animation:blink 1.1s steps(1) infinite; }
 }
 .gbtn:hover{ background:#f8f9fa; box-shadow:0 2px 10px rgba(0,0,0,.35), 0 0 0 1px rgba(255,176,0,.25); }
 .gbtn:active{ transform:translateY(1px) scale(.995); }
-.gbtn:disabled{ opacity:.55; cursor:default; transform:none; }
+.gbtn:disabled{ opacity:.6; cursor:wait; transform:none; }
 .gbtn svg{ flex:0 0 auto; }
 
 .status{
-  min-height:20px; margin-top:20px;
+  min-height:22px; margin-top:20px;
   font-family:var(--font-pixel); font-size:7.5px; letter-spacing:1.5px; line-height:1.9;
   color:var(--brand);
   overflow-wrap:anywhere;
 }
+.meta-box{
+  margin-top:18px; padding:10px;
+  background:rgba(0,0,0,.3);
+  border:1px dashed var(--border-soft);
+  border-radius:4px;
+  font-family:var(--font-mono); font-size:11px; color:var(--muted);
+  line-height:1.6; text-align:left;
+}
+.meta-box .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-right:6px; }
+.meta-box span.val{ color:var(--text); word-break:break-all; }
+
+.bypass-btn{
+  margin-top:14px;
+  background:none; border:none; color:var(--faint);
+  font-family:var(--font-pixel); font-size:6.5px; letter-spacing:1px;
+  cursor:pointer; padding:4px 8px; text-decoration:underline;
+}
+.bypass-btn:hover{ color:var(--muted); }
+
 .foot{
-  margin-top:6px;
+  margin-top:16px;
   font-family:var(--font-pixel); font-size:6px; letter-spacing:2px; color:var(--faint);
 }
-.note{
-  margin-top:14px; font-size:15px; line-height:1.35; color:var(--faint);
-  display:none;
-}
-.note.show{ display:block; }
-.note code{ color:var(--brand); font-family:var(--font-mono); font-size:13px; }
 </style>
 </head>
 <body>
@@ -138,7 +154,7 @@ h1 .cur{ color:var(--brand); animation:blink 1.1s steps(1) infinite; }
   <h1>REXWORK<span class="cur">█</span></h1>
   <div class="tag">ONE WORKSPACE.<br/>EVERY WAY TO THINK.</div>
 
-  <div class="divider"><span>SIGN IN</span></div>
+  <div class="divider"><span>GOOGLE AUTH</span></div>
 
   <button class="gbtn" id="gbtn" aria-label="Login with Google">
     <svg width="19" height="19" viewBox="0 0 48 48" aria-hidden="true">
@@ -152,32 +168,30 @@ h1 .cur{ color:var(--brand); animation:blink 1.1s steps(1) infinite; }
 
   <div class="status" id="status">READY — PRESS LOGIN TO CONTINUE</div>
 
-  <div class="note" id="note">
-    Demo login aktif. Untuk Google sign-in beneran, isi
-    <code>GOOGLE_CLIENT_ID</code> di file ini dengan OAuth Client ID dari
-    Google Cloud Console.
+  <div class="meta-box">
+    <div><span class="dot"></span>PROVIDER: <span class="val">Supabase Auth (Google OAuth)</span></div>
+    <div>PROJECT: <span class="val">fdlklzveockeibcmijmz</span></div>
+    <div>CLIENT KEY: <span class="val">Publishable Key Active</span></div>
   </div>
 
-  <div class="foot">SECURED BY GOOGLE · REXWORK v1.1</div>
+  <button class="bypass-btn" id="bypass-btn" type="button" title="Gunakan akun demo lokal tanpa internet">[ DEV / OFFLINE BYPASS ]</button>
+
+  <div class="foot">SECURED BY SUPABASE · REXWORK v1.1</div>
 </div>
 
 <script>
 'use strict';
 
 /* ============================================================
-   CONFIG — isi dengan OAuth Client ID (type: Web application)
-   dari https://console.cloud.google.com/apis/credentials
-   Authorized JavaScript origins: http://127.0.0.1:8000
-   Kalau kosong -> tombol jalan sebagai DEMO login.
+   SUPABASE CLIENT CONFIG (Publishable Key)
    ============================================================ */
-const GOOGLE_CLIENT_ID = '';
-
+const SUPABASE_URL = 'https://fdlklzveockeibcmijmz.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq';
 const AUTH_KEY = 'rexwork_auth';
-const btn    = document.getElementById('gbtn');
-const statusEl = document.getElementById('status');
-const noteEl = document.getElementById('note');
 
-if(!GOOGLE_CLIENT_ID) noteEl.classList.add('show');
+const btn       = document.getElementById('gbtn');
+const bypassBtn = document.getElementById('bypass-btn');
+const statusEl  = document.getElementById('status');
 
 function setStatus(text, color){
   statusEl.textContent = text;
@@ -189,75 +203,115 @@ function saveAuth(profile){
   location.replace('index.html');
 }
 
-/* Kalau sudah login, langsung masuk app */
-try{
-  const a = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
-  if(a && a.provider){
-    setStatus('SESSION FOUND — OPENING REXWORK…');
-    setTimeout(()=>location.replace('index.html'), 350);
+/* Inisialisasi Supabase client */
+let supabase = null;
+try {
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true
+      }
+    });
   }
-}catch(e){}
-
-/* ---------- REAL GOOGLE SIGN-IN (kalau CLIENT_ID diisi) ---------- */
-let tokenClient = null;
-
-function initGoogle(){
-  if(!GOOGLE_CLIENT_ID) return;
-  const s = document.createElement('script');
-  s.src = 'https://accounts.google.com/gsi/client';
-  s.async = true; s.defer = true;
-  s.onload = ()=>{
-    try{
-      tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: 'openid profile email',
-        callback: async (resp)=>{
-          if(!resp || !resp.access_token){
-            setStatus('SIGN-IN CANCELLED', 'var(--red)');
-            btn.disabled = false;
-            return;
-          }
-          setStatus('VERIFYING ACCOUNT…');
-          try{
-            const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: { Authorization: 'Bearer ' + resp.access_token }
-            });
-            const u = await r.json();
-            setStatus('SIGNED IN — OPENING REXWORK…');
-            setTimeout(()=>saveAuth({
-              provider: 'google', demo: false,
-              name: u.name || u.email || 'User',
-              email: u.email || '', picture: u.picture || ''
-            }), 400);
-          }catch(err){
-            setStatus('FAILED TO FETCH PROFILE — TRY AGAIN', 'var(--red)');
-            btn.disabled = false;
-          }
-        }
-      });
-    }catch(e){ /* tetap bisa demo login */ }
-  };
-  document.head.appendChild(s);
+} catch (e) {
+  console.error('Supabase init error:', e);
 }
-initGoogle();
 
-/* ---------- CLICK ---------- */
-btn.addEventListener('click', ()=>{
+/* Hitung redirect URL dinamis (bisa untuk lokal 127.0.0.1 maupun Vercel production) */
+function getRedirectUrl() {
+  const origin = window.location.origin;
+  const path = window.location.pathname.replace(/\/Main\.html$/i, '');
+  return origin + path + (path.endsWith('/') ? '' : '/') + 'index.html';
+}
+
+/* Cek session aktif: kalau sudah login, langsung lempar ke index.html */
+async function checkExistingSession() {
+  if (supabase) {
+    try {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (session && session.user) {
+        const u = session.user;
+        const profile = {
+          provider: 'google',
+          id: u.id,
+          email: u.email || '',
+          name: u.user_metadata?.full_name || u.user_metadata?.name || (u.email ? u.email.split('@')[0] : 'User'),
+          avatar: u.user_metadata?.avatar_url || u.user_metadata?.picture || '',
+          demo: false
+        };
+        setStatus('ACTIVE SESSION FOUND — OPENING REXWORK…', 'var(--green)');
+        setTimeout(() => saveAuth(profile), 300);
+        return;
+      }
+    } catch (e) {
+      console.warn('Session check warning:', e);
+    }
+  }
+
+  /* Cek fallback localStorage */
+  try {
+    const cached = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
+    if (cached && cached.provider) {
+      setStatus('SESSION FOUND — OPENING REXWORK…', 'var(--green)');
+      setTimeout(() => location.replace('index.html'), 350);
+    }
+  } catch (e) {}
+}
+
+checkExistingSession();
+
+/* ---------- TOMBOL LOGIN GOOGLE VIA SUPABASE ---------- */
+btn.addEventListener('click', async () => {
   btn.disabled = true;
 
-  if(tokenClient){
-    setStatus('OPENING GOOGLE SIGN-IN…');
-    tokenClient.requestAccessToken({ prompt: 'select_account' });
+  if (!supabase) {
+    setStatus('SUPABASE SDK NOT READY — RETRYING…', 'var(--red)');
+    setTimeout(() => { btn.disabled = false; }, 1500);
     return;
   }
 
-  /* Demo login (offline / belum ada client id) */
-  setStatus('CONNECTING TO GOOGLE…');
-  setTimeout(()=>setStatus('SIGNED IN — OPENING REXWORK…'), 650);
-  setTimeout(()=>saveAuth({
-    provider: 'google', demo: true,
-    name: 'ARLANDO', email: ''
-  }), 1150);
+  setStatus('CONNECTING TO SUPABASE…');
+
+  try {
+    const targetUrl = getRedirectUrl();
+    setStatus('REDIRECTING TO GOOGLE OAUTH…');
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: targetUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent'
+        }
+      }
+    });
+
+    if (error) {
+      console.error('Supabase Google OAuth error:', error);
+      setStatus('LOGIN FAILED: ' + (error.message || 'UNKNOWN').toUpperCase(), 'var(--red)');
+      btn.disabled = false;
+    }
+  } catch (err) {
+    console.error('Sign-in error:', err);
+    setStatus('NETWORK ERROR — PLEASE RETRY', 'var(--red)');
+    btn.disabled = false;
+  }
+});
+
+bypassBtn.addEventListener('click', () => {
+  setStatus('DEVELOPER BYPASS ACTIVATED…', 'var(--brand)');
+  setTimeout(() => {
+    saveAuth({
+      provider: 'google',
+      demo: true,
+      id: 'demo-local-user',
+      name: 'ARLANDO (DEV)',
+      email: 'arlando.dev@local'
+    });
+  }, 400);
 });
 </script>
 </body>

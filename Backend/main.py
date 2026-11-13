@@ -6,7 +6,11 @@ import json
 from typing import Optional, List, Dict, Any
 
 import httpx
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,8 +18,6 @@ from fastapi.middleware.cors import CORSMiddleware
 # ============================================================
 # BOOTSTRAP
 # ============================================================
-
-load_dotenv()
 
 app = FastAPI(
     title="RexWork",
@@ -694,8 +696,22 @@ async def chat(request: Request):
 
 
 # ============================================================
-# BASH EXECUTION (CODING WORKSPACE)
+# BASH EXECUTION (CODING WORKSPACE AGENT)
 # ============================================================
+
+try:
+    from agent_tools import execute_agent_bash, list_workspace_files
+except ImportError:
+    try:
+        from backend.agent_tools import execute_agent_bash, list_workspace_files
+    except ImportError:
+        def execute_agent_bash(cmd, timeout=15):
+            import subprocess
+            try:
+                proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
+                return {"ok": True, "stdout": proc.stdout, "stderr": proc.stderr, "returncode": proc.returncode}
+            except Exception as e:
+                return {"ok": False, "error": str(e)}
 
 @app.post("/api/bash")
 async def execute_bash(request: Request):
@@ -708,26 +724,8 @@ async def execute_bash(request: Request):
     if not command:
         return error_response(400, "EMPTY_COMMAND", "No command provided.")
 
-    import subprocess
-    try:
-        proc = subprocess.run(
-            command,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=15,
-            cwd="/home/user" if os.path.exists("/home/user") else None
-        )
-        return {
-            "ok": True,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-            "returncode": proc.returncode
-        }
-    except subprocess.TimeoutExpired:
-        return error_response(408, "TIMEOUT", "Command timed out (15s limit).")
-    except Exception as e:
-        return error_response(500, "EXECUTION_ERROR", str(e))
+    res = execute_agent_bash(command, timeout=15)
+    return res
 
 # ============================================================
 # RESEARCH SEARCH

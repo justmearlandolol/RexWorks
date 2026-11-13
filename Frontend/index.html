@@ -6,10 +6,13 @@
 
 <meta name="rexwork-api" content="https://rexworks-backend.vercel.app" />
 <meta name="color-scheme" content="dark light" />
+<meta name="supabase-url" content="https://fdlklzveockeibcmijmz.supabase.co" />
+<meta name="supabase-anon-key" content="sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq" />
 <title>RexWork — One workspace. Every way to think.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 
 :root{
@@ -208,7 +211,8 @@ body.sidebar-collapsed .chat-inner{
 .side-foot{ border-top:1px solid var(--border-soft); padding:8px; }
 .user-row{ display:flex; align-items:center; gap:9px; padding:7px 8px; border-radius:var(--radius); }
 .user-row:hover{ background:var(--surface); }
-.avatar{ width:30px; height:30px; border-radius:3px; display:grid; place-items:center; background:var(--surface-3); color:var(--brand); font-family:var(--font-pixel); font-size:11px; }
+.avatar{ width:30px; height:30px; border-radius:3px; display:grid; place-items:center; overflow:hidden; flex:0 0 auto; background:var(--surface-3); color:var(--brand); font-family:var(--font-pixel); font-size:11px; }
+.avatar img{ display:block; width:100%; height:100%; object-fit:cover; }
 .user-row .who{ font-family:var(--font-pixel); font-size:9px; letter-spacing:1px; }
 .user-row .sub{ font-size:11px; color:var(--faint); margin-top:1px; }
 .user-row .spacer{ flex:1; }
@@ -457,7 +461,7 @@ textarea.input{ resize:vertical; min-height:90px; }
 @keyframes toastin{ from{ opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
 
 
-#search-overlay{ position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.72); display:none; align-items:flex-start; justify-content:center; padding-top:9vh; }
+#search-overlay{ position:fixed; inset:0; z-index:90; background:rgba(4,6,10,.72); display:none; align-items:flex-start; justify-content:center; padding:9vh 16px 24px; }
 #search-overlay.open{ display:flex; }
 .search-modal{ width:100%; max-width:560px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow); overflow:hidden; }
 .search-modal input{ width:100%; background:transparent; border:none; outline:none; padding:17px 18px; font-size:17px; color:var(--text); }
@@ -824,18 +828,22 @@ const $$ = (s)=>Array.from(document.querySelectorAll(s));
 function el(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function getUserDisplayName(){
-  if(state.auth){
-    if(state.auth.name && state.auth.name.trim()) return state.auth.name.trim();
-    if(state.auth.username && state.auth.username.trim()) return state.auth.username.trim();
-    if(state.auth.email && state.auth.email.trim()) return state.auth.email.split('@')[0].trim();
-  }
-  const cached = authProfile();
-  if(cached){
-    if(cached.name && cached.name.trim()) return cached.name.trim();
-    if(cached.username && cached.username.trim()) return cached.username.trim();
-    if(cached.email && cached.email.trim()) return cached.email.split('@')[0].trim();
-  }
-  return 'User';
+  const pick = (profile)=>{
+    if(!profile) return '';
+    const metadata = profile.user_metadata || profile.userMetadata || {};
+    const values = [profile.name, profile.displayName, profile.display_name, profile.username, metadata.full_name, metadata.name, metadata.user_name, metadata.preferred_username];
+    for(const value of values){
+      if(typeof value === 'string' && value.trim()) return value.trim();
+    }
+    if(typeof profile.email === 'string' && profile.email.trim()) return profile.email.split('@')[0].trim();
+    return '';
+  };
+  return pick(state.auth) || pick(authProfile()) || 'User';
+}
+function getAuthAvatar(profile){
+  if(!profile) return '';
+  const metadata = profile.user_metadata || profile.userMetadata || {};
+  return profile.avatar || profile.avatarUrl || profile.avatar_url || metadata.avatar_url || metadata.picture || '';
 }
 function uid(){ return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function now(){ return Date.now(); }
@@ -1037,60 +1045,118 @@ function demoAnswer(mode, text){
 }
 
 
-function inlineMd(s){
-  s = s.replace(/`([^`]+)`/g, (m,c)=>`<code class="inline">${c}</code>`);
-  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
-  s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-  s = s.replace(/\$([^$\n]+)\$/g, '<span class="latex">$1</span>');
-  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-  return s;
+function inlineMd(value){
+  const codeTokens = [];
+  let text = esc(value);
+  text = text.replace(/`([^`\n]+)`/g, (_, code)=>{
+    const token = `\uE000${codeTokens.length}\uE001`;
+    codeTokens.push(`<code class="inline">${code}</code>`);
+    return token;
+  });
+  text = text.replace(/!\[([^\]]*)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  text = text.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  text = text.replace(/__([^_\n]+)__/g, '<strong>$1</strong>');
+  text = text.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+  text = text.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
+  text = text.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
+  text = text.replace(/\$([^$\n]+)\$/g, '<span class="latex">$1</span>');
+  return text.replace(/\uE000(\d+)\uE001/g, (_, index)=>codeTokens[Number(index)] || '');
+}
+function isMarkdownBlockStart(line){
+  return /^\s*```/.test(line) || /^(#{1,6})\s+/.test(line) || /^\s*>\s?/.test(line) || /^\s*[-*+]\s+/.test(line) || /^\s*\d+[.)]\s+/.test(line) || /^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(line) || /^\s*\|.*\|\s*$/.test(line);
 }
 function renderMarkdown(src){
-  if(!src) return '';
-  const lines = esc(src).split('\n');
-  let html='', i=0;
-  let listBuf=null, listType=null;
-  const flushList=()=>{ if(listBuf){ html += `<${listType}>${listBuf}</${listType}>`; listBuf=null; listType=null; } };
-  while(i<lines.length){
-    let line = lines[i];
-    
-    const fc = line.match(/^```(\w*)/);
-    if(fc){
+  if(src == null || src === '') return '';
+  const lines = String(src).replace(/\r\n?/g, '\n').split('\n');
+  let html = '';
+  let i = 0;
+  let listType = '';
+  let listItems = [];
+  const flushList = ()=>{
+    if(!listType) return;
+    html += `<${listType}>${listItems.join('')}</${listType}>`;
+    listType = '';
+    listItems = [];
+  };
+  while(i < lines.length){
+    const line = lines[i];
+    const fence = line.match(/^\s*```([\w+-]*)\s*$/);
+    if(fence){
       flushList();
-      const lang = fc[1]||'text';
-      let code=''; i++;
-      while(i<lines.length && !lines[i].trim().startsWith('```')){ code += lines[i]+'\n'; i++; }
-      i++;
-      html += `<pre><div class="pre-head"><span class="lang">${esc(lang)}</span><button class="copy">COPY</button></div><code>${code}</code></pre>`;
+      const language = fence[1] || 'text';
+      const codeLines = [];
+      i += 1;
+      while(i < lines.length && !/^\s*```\s*$/.test(lines[i])){
+        codeLines.push(lines[i]);
+        i += 1;
+      }
+      if(i < lines.length) i += 1;
+      html += `<pre><div class="pre-head"><span class="lang">${esc(language)}</span><button type="button" class="copy">COPY</button></div><code>${esc(codeLines.join('\n'))}</code></pre>`;
       continue;
     }
-    
-    const h = line.match(/^(#{1,6})\s+(.*)/);
-    if(h){ flushList(); const lv=h[1].length; html += `<h${lv}>${inlineMd(h[2])}</h${lv}>`; i++; continue; }
-    
-    if(/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(line) && !line.trim().startsWith('* ') ){ flushList(); html+='<hr/>'; i++; continue; }
-    
-    if(/^\s*>\s?/.test(line)){ flushList(); html+='<blockquote>'; while(i<lines.length && /^\s*>\s?/.test(lines[i])){ html+=`<p>${inlineMd(lines[i].replace(/^\s*>\s?/,''))}</p>`; i++; } html+='</blockquote>'; continue; }
-    
-    if(/^\s*[-*+]\s+/.test(line)){ if(listType!=='ul'){ flushList(); listType='ul'; listBuf=''; } listBuf+=`<li>${inlineMd(line.replace(/^\s*[-*+]\s+/,''))}</li>`; i++; continue; }
-    
-    if(/^\s*\d+[.)]\s+/.test(line)){ if(listType!=='ol'){ flushList(); listType='ol'; listBuf=''; } listBuf+=`<li>${inlineMd(line.replace(/^\s*\d+[.)]\s+/,''))}</li>`; i++; continue; }
-    
-    if(/^\s*\|.*\|\s*$/.test(line) && i+1<lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+    const heading = line.match(/^(#{1,6})\s+(.*)$/);
+    if(heading){
       flushList();
-      const header = line.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
-      i+=2;
-      const rows=[];
-      while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){ rows.push(lines[i].trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim())); i++; }
-      html += '<table><thead><tr>'+header.map(c=>`<th>${inlineMd(c)}</th>`).join('')+'</tr></thead><tbody>'+rows.map(r=>'<tr>'+r.map(c=>`<td>${inlineMd(c)}</td>`).join('')+'</tr>').join('')+'</tbody></table>';
+      const level = heading[1].length;
+      html += `<h${level}>${inlineMd(heading[2])}</h${level}>`;
+      i += 1;
       continue;
     }
-    
-    if(!line.trim()){ flushList(); i++; continue; }
-    
-    flushList(); html += `<p>${inlineMd(line)}</p>`; i++;
+    if(/^\s*([-*_])\s*\1\s*\1[\s\-*_]*$/.test(line) && !line.trim().startsWith('* ')){
+      flushList();
+      html += '<hr>';
+      i += 1;
+      continue;
+    }
+    if(/^\s*>\s?/.test(line)){
+      flushList();
+      const quote = [];
+      while(i < lines.length && /^\s*>\s?/.test(lines[i])){
+        quote.push(lines[i].replace(/^\s*>\s?/, ''));
+        i += 1;
+      }
+      html += `<blockquote>${quote.map(part=>`<p>${inlineMd(part)}</p>`).join('')}</blockquote>`;
+      continue;
+    }
+    if(/^\s*\|.*\|\s*$/.test(line) && i + 1 < lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i + 1])){
+      flushList();
+      const cells = (row)=>row.trim().replace(/^\||\|$/g, '').split('|').map(cell=>cell.trim());
+      const header = cells(line);
+      i += 2;
+      const rows = [];
+      while(i < lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){
+        rows.push(cells(lines[i]));
+        i += 1;
+      }
+      html += `<table><thead><tr>${header.map(cell=>`<th>${inlineMd(cell)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${header.map((_, index)=>`<td>${inlineMd(row[index] || '')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      continue;
+    }
+    const unordered = line.match(/^\s*[-*+]\s+(.*)$/);
+    const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if(unordered || ordered){
+      const nextType = unordered ? 'ul' : 'ol';
+      if(listType && listType !== nextType) flushList();
+      listType = nextType;
+      const item = unordered ? unordered[1] : ordered[1];
+      const task = item.match(/^\[([ xX])\]\s+(.*)$/);
+      listItems.push(task ? `<li class="task-item"><input type="checkbox" disabled ${task[1].toLowerCase() === 'x' ? 'checked' : ''}>${inlineMd(task[2])}</li>` : `<li>${inlineMd(item)}</li>`);
+      i += 1;
+      continue;
+    }
+    if(!line.trim()){
+      flushList();
+      i += 1;
+      continue;
+    }
+    flushList();
+    const paragraph = [line.trim()];
+    i += 1;
+    while(i < lines.length && lines[i].trim() && !isMarkdownBlockStart(lines[i])){
+      paragraph.push(lines[i].trim());
+      i += 1;
+    }
+    html += `<p>${inlineMd(paragraph.join(' '))}</p>`;
   }
   flushList();
   return html;
@@ -1203,7 +1269,8 @@ const AVATAR_PALETTE = ['#ffb000','#4dd0e1','#66d48a','#ab8bf0','#f06292','#ff6b
 function renderOnboarding(){
   const inner = $('#chat-inner');
   const auth = state.auth || {};
-  let curAvatarImg = auth.avatar || '';
+  let curAvatarImg = getAuthAvatar(auth);
+  let curAvatarFile = null;
   let curAvatarColor = auth.avatarColor || AVATAR_PALETTE[Math.floor(Math.random()*AVATAR_PALETTE.length)];
   const defaultAge = auth.age || 18;
 
@@ -1323,6 +1390,7 @@ function renderOnboarding(){
 
   $('#ob-btn-random-col').addEventListener('click', ()=>{
     curAvatarImg = '';
+    curAvatarFile = null;
     const remaining = AVATAR_PALETTE.filter(col => col !== curAvatarColor);
     curAvatarColor = remaining[Math.floor(Math.random() * remaining.length)];
     updateAvatarPreview();
@@ -1331,6 +1399,7 @@ function renderOnboarding(){
   $('#ob-file-input').addEventListener('change', (e)=>{
     const f = e.target.files && e.target.files[0];
     if(!f) return;
+    curAvatarFile = f;
     const reader = new FileReader();
     reader.onload = (ev)=>{
       curAvatarImg = ev.target.result;
@@ -1342,6 +1411,7 @@ function renderOnboarding(){
   if($('#ob-btn-remove-photo')){
     $('#ob-btn-remove-photo').addEventListener('click', ()=>{
       curAvatarImg = '';
+      curAvatarFile = null;
       $('#ob-file-input').value = '';
       updateAvatarPreview();
     });
@@ -1349,7 +1419,7 @@ function renderOnboarding(){
 
   updateAvatarPreview();
 
-  $('#ob-submit').addEventListener('click', ()=>{
+  $('#ob-submit').addEventListener('click', async ()=>{
     const name = ($('#ob-name').value || '').trim();
     let ageVal = parseInt($('#ob-age').value, 10);
     if(isNaN(ageVal)) ageVal = 18;
@@ -1374,13 +1444,24 @@ function renderOnboarding(){
     localStorage.setItem('rexwork_onboarded', 'true');
     localStorage.setItem('rexwork_profile', JSON.stringify(state.auth));
 
+    const submitButton = $('#ob-submit');
+    submitButton.disabled = true;
+    submitButton.textContent = 'SAVING PROFILE...';
+    try{
+      await persistUserProfile(state.auth, curAvatarFile);
+    }catch(error){
+      toast('PROFILE SAVED LOCALLY. CLOUD SYNC FAILED.');
+    }finally{
+      submitButton.disabled = false;
+      submitButton.textContent = 'COMPLETE SETUP & START CHATTING →';
+    }
+
     const userProfileContext = `User Profile:\n- Name: ${name}\n- Age: ${ageVal}\n- Role: ${jobs}` + (desc ? `\n- Background/Goals: ${desc}` : '');
     const userInstruction = `Always call the user by their name (${name}). Tailor your answers for a ${jobs} (age ${ageVal}).`;
     state.custom.about = userProfileContext;
     state.custom.respond = userInstruction;
     saveCustom();
 
-    applyAuthToUI();
     state.view = 'chat';
     const comp = $('#composer');
     if(comp) comp.classList.remove('hidden');
@@ -1680,7 +1761,7 @@ function messageHTML(m, i, c){
       <div class="body">
         <div class="who">${esc(getUserDisplayName().toUpperCase())}</div>
         ${chips}
-        <div class="bubble">${esc(m.content)}</div>
+        <div class="bubble md">${renderMarkdown(m.content)}</div>
         <div class="msg-acts">
           <button class="icon-btn" data-uact="copy" title="Copy">${COPY_SVG}</button>
           <button class="icon-btn" data-uact="edit" title="Edit">${EDIT_SVG}</button>
@@ -2521,7 +2602,7 @@ function renderSettingsIfVisible(){ if(state.view==='settings') renderSettings()
 function openSearch(){
   $('#search-overlay').classList.add('open');
   $('#search-input').value='';
-  $('#search-res').innerHTML = `<div class="search-res">${state.search.history.length?`<div class="sr-label">RECENT SEARCHES</div>`+state.search.history.map(h=>`<button class="sr-item" data-recent="${esc(h)}">${esc(h)}</button>`).join(''):''}</div>`;
+  $('#search-res').innerHTML = state.search.history.length ? `<div class="sr-label">RECENT SEARCHES</div>${state.search.history.map(h=>`<button class="sr-item" data-recent="${esc(h)}">${esc(h)}</button>`).join('')}` : '<div class="search-empty">TYPE TO SEARCH CHATS, PROJECTS AND FILES</div>';
   setTimeout(()=>$('#search-input').focus(),10);
 }
 function closeSearch(){ $('#search-overlay').classList.remove('open'); $('#search-res').innerHTML=''; }
@@ -2536,7 +2617,7 @@ function runSearch(q){
     const chats = state.conversations.filter(c=> c.title.toLowerCase().includes(q) || c.messages.some(m=>(m.content||'').toLowerCase().includes(q)));
     const projs = state.projects.filter(p=> p.name.toLowerCase().includes(q));
     const files = [];
-    state.projects.forEach(p=>p.files.forEach(f=>{ if(f.name.toLowerCase().includes(q)) files.push({name:f.name,proj:p.name}); }));
+    state.projects.forEach(p=>(p.files || []).forEach(f=>{ if((f.name || '').toLowerCase().includes(q)) files.push({name:f.name,proj:p.name}); }));
     let html='';
     const empty = !chats.length && !projs.length && !files.length;
     if(chats.length){ html+='<div class="sr-label">CHATS</div>'+chats.map(c=>`<button class="sr-item" data-open="${c.id}">${hl(esc(c.title))}</button>`).join(''); }
@@ -2840,7 +2921,7 @@ function toggleSidebar(){
 function closeAllPopovers(){ $('#mode-pop').classList.remove('open'); $('#tools-pop').classList.remove('open'); $('#mode-chip').setAttribute('aria-expanded','false'); }
 function closeComposerSubMenus(){ closeAllPopovers(); }
 
-function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); updateComposerState(); }
+function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); updateComposerState(); applyAuthToUI(); }
 
 function bindEvents(){
   
@@ -2984,7 +3065,7 @@ function bindEvents(){
   
   $('#search-input').addEventListener('input',debounce(e=>runSearch(e.target.value),200));
   $('#search-input').addEventListener('keydown',e=>{ if(e.key==='Escape') closeSearch(); });
-  $('#search-overlay').addEventListener('click',e=>{ if(e.target.id==='search-overlay') closeSearch(); });
+  $('#search-overlay').addEventListener('click',e=>{ if(e.target.closest('.search-modal')) return; e.preventDefault(); e.stopPropagation(); closeSearch(); });
   $('#search-res').addEventListener('click',e=>{
     const r=e.target.closest('[data-recent]'); if(r){ $('#search-input').value=r.getAttribute('data-recent'); runSearch(r.getAttribute('data-recent')); }
   });
@@ -3026,29 +3107,153 @@ function authProfile(){
 function applyAuthToUI(){
   const auth = state.auth || authProfile();
   if(!auth) return;
-  const name = String(auth.name||'USER').toUpperCase();
+  const name = getUserDisplayName().toUpperCase();
+  const avatar = getAuthAvatar(auth);
   const who = document.querySelector('.user-row .who');
   if(who) who.textContent = name;
   const av = document.querySelector('.user-row .avatar');
-  if(av){
-    if(auth.avatar){
-      av.style.background = 'var(--surface-3)';
-      av.innerHTML = `<img src="${esc(auth.avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;" onerror="this.onerror=null;this.parentNode.textContent='${esc(name[0]||'U')}';"/>`;
-    } else {
-      const col = auth.avatarColor || '#ffb000';
-      av.innerHTML = '';
-      av.style.background = col;
-      av.style.color = '#141005';
-      av.style.fontWeight = 'bold';
-      av.textContent = name[0] || 'U';
-    }
+  if(!av) return;
+  if(avatar){
+    av.style.background = 'var(--surface-3)';
+    av.style.color = 'var(--brand)';
+    av.innerHTML = `<img src="${esc(avatar)}" alt="${esc(name)}" referrerpolicy="no-referrer" onerror="this.remove();this.parentNode.textContent='${esc(name[0] || 'U')}';"/>`;
+    return;
   }
+  const color = auth.avatarColor || '#ffb000';
+  av.innerHTML = '';
+  av.style.background = color;
+  av.style.color = '#141005';
+  av.style.fontWeight = 'bold';
+  av.textContent = name[0] || 'U';
 }
 
 
+function supabaseConfig(){
+  const url = String((document.querySelector('meta[name="supabase-url"]') || {}).content || window.REXWORK_SUPABASE_URL || '').trim().replace(/\/+$/, '');
+  const key = String((document.querySelector('meta[name="supabase-anon-key"]') || {}).content || window.REXWORK_SUPABASE_ANON_KEY || '').trim();
+  return { url, key };
+}
+let supabaseClient = null;
+function getSupabaseClient(){
+  if(supabaseClient) return supabaseClient;
+  const { url, key } = supabaseConfig();
+  if(!url || !key || !window.supabase || !window.supabase.createClient) return null;
+  supabaseClient = window.supabase.createClient(url, key, { auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true } });
+  return supabaseClient;
+}
+function profilePayload(auth){
+  const displayName = getUserDisplayName();
+  return {
+    id: auth.id || auth.userId,
+    display_name: displayName,
+    avatar_path: auth.avatarPath || auth.avatar_path || null,
+    avatar_url: getAuthAvatar(auth) || null,
+    avatar_color: auth.avatarColor || '#ffb000',
+    age: Number.isInteger(Number(auth.age)) ? Number(auth.age) : null,
+    job_title: auth.jobs || auth.jobTitle || null,
+    description: auth.description || null,
+    onboarded: Boolean(auth.onboarded)
+  };
+}
+function mergeProfileIntoAuth(profile){
+  if(!profile) return state.auth;
+  state.auth = Object.assign({}, state.auth || {}, {
+    id: profile.id || (state.auth || {}).id,
+    userId: profile.id || (state.auth || {}).userId,
+    name: profile.display_name || (state.auth || {}).name,
+    avatar: profile.avatar_url || (state.auth || {}).avatar || '',
+    avatarUrl: profile.avatar_url || (state.auth || {}).avatarUrl || '',
+    avatarPath: profile.avatar_path || (state.auth || {}).avatarPath || '',
+    avatarColor: profile.avatar_color || (state.auth || {}).avatarColor || '#ffb000',
+    age: profile.age == null ? (state.auth || {}).age : profile.age,
+    jobs: profile.job_title || (state.auth || {}).jobs || '',
+    description: profile.description || (state.auth || {}).description || '',
+    onboarded: Boolean(profile.onboarded || (state.auth || {}).onboarded)
+  });
+  localStorage.setItem('rexwork_auth', JSON.stringify(state.auth));
+  localStorage.setItem('rexwork_profile', JSON.stringify(state.auth));
+  return state.auth;
+}
+async function hydrateAuthFromSupabase(){
+  const client = getSupabaseClient();
+  if(!client) return authProfile();
+  try{
+    const { data, error } = await client.auth.getSession();
+    if(error || !data || !data.session) return authProfile();
+    const session = data.session;
+    const user = session.user;
+    const metadata = user.user_metadata || {};
+    const current = authProfile() || {};
+    const merged = Object.assign({}, current, {
+      id: user.id,
+      userId: user.id,
+      email: user.email || current.email || '',
+      provider: (user.app_metadata || {}).provider || current.provider || 'supabase',
+      access_token: session.access_token,
+      name: metadata.full_name || metadata.name || metadata.user_name || current.name || current.username || '',
+      username: metadata.user_name || metadata.preferred_username || current.username || '',
+      avatar: metadata.avatar_url || metadata.picture || current.avatar || '',
+      avatarUrl: metadata.avatar_url || metadata.picture || current.avatarUrl || ''
+    });
+    localStorage.setItem('rexwork_auth', JSON.stringify(merged));
+    return merged;
+  }catch(error){
+    return authProfile();
+  }
+}
+async function syncProfileFromSupabase(){
+  const client = getSupabaseClient();
+  const id = (state.auth || {}).id || (state.auth || {}).userId;
+  if(!client || !id) return null;
+  try{
+    const { data, error } = await client.from('profiles').select('*').eq('id', id).maybeSingle();
+    if(error) return null;
+    if(data) return mergeProfileIntoAuth(data);
+    const { data: created, error: createError } = await client.from('profiles').upsert(profilePayload(state.auth), { onConflict:'id' }).select().maybeSingle();
+    if(createError || !created) return null;
+    return mergeProfileIntoAuth(created);
+  }catch(error){
+    return null;
+  }
+}
+async function uploadProfileAvatar(file, userId){
+  const client = getSupabaseClient();
+  if(!client || !file || !userId) return null;
+  if(file.size > 5 * 1024 * 1024) throw new Error('Avatar image exceeds 5 MB');
+  const declaredType = String(file.type || '').toLowerCase();
+  if(!declaredType.startsWith('image/')) throw new Error('Avatar must be an image');
+  const extension = ({ 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'image/gif':'gif' })[declaredType] || 'png';
+  const path = `${userId}/avatar.${extension}`;
+  const { error } = await client.storage.from('avatars').upload(path, file, { upsert:true, cacheControl:'3600', contentType:declaredType });
+  if(error) throw error;
+  const { data } = client.storage.from('avatars').getPublicUrl(path);
+  return { path, url: `${data.publicUrl}?v=${Date.now()}` };
+}
+async function persistUserProfile(auth, avatarFile){
+  const client = getSupabaseClient();
+  const id = auth.id || auth.userId;
+  if(!client || !id) return auth;
+  const next = Object.assign({}, auth);
+  if(avatarFile){
+    const uploaded = await uploadProfileAvatar(avatarFile, id);
+    if(uploaded){
+      next.avatar = uploaded.url;
+      next.avatarUrl = uploaded.url;
+      next.avatarPath = uploaded.path;
+    }
+  }
+  const { data, error } = await client.from('profiles').upsert(profilePayload(next), { onConflict:'id' }).select().maybeSingle();
+  if(error) throw error;
+  state.auth = next;
+  if(data) mergeProfileIntoAuth(data);
+  localStorage.setItem('rexwork_auth', JSON.stringify(state.auth));
+  localStorage.setItem('rexwork_profile', JSON.stringify(state.auth));
+  return state.auth;
+}
+
 async function boot(){
-  const auth = authProfile();
-  if(!auth || !auth.provider){
+  const auth = await hydrateAuthFromSupabase();
+  if(!auth || (!auth.provider && !auth.id && !auth.userId)){
     window.location.replace('Main.html');
     return;
   }
@@ -3056,10 +3261,12 @@ async function boot(){
   loadAll();
 
   const savedProf = lsGet('rexwork_profile', null);
+  state.auth = Object.assign({}, savedProf || {}, state.auth);
+  await syncProfileFromSupabase();
   const wasOnboarded = lsGet('rexwork_onboarded', false) || Boolean(state.auth && state.auth.onboarded) || Boolean(savedProf && savedProf.onboarded);
 
   if(wasOnboarded){
-    state.auth = Object.assign({}, savedProf || {}, state.auth, { onboarded: true });
+    state.auth.onboarded = true;
     state.view = 'chat';
   } else {
     state.view = 'onboarding';
@@ -3120,5 +3327,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d777b0f04960c',t:'MTc5NDU2OTY2MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d777b0f04960c',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

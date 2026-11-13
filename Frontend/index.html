@@ -426,6 +426,84 @@ textarea.input{ resize:vertical; min-height:90px; }
 @media (prefers-reduced-motion: reduce){
   *{ animation:none !important; transition:none !important; scroll-behavior:auto !important; }
 }
+
+.coding-workspace-box{
+  border:1px solid var(--border);
+  border-radius:8px;
+  background:var(--surface);
+  margin-bottom:20px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.ws-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 14px; background:var(--surface-2);
+  border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px;
+}
+.ws-title{ display:flex; align-items:center; gap:10px; }
+.ws-badge{ font-family:var(--font-mono); font-size:11px; color:var(--muted); background:var(--surface-3); padding:2px 8px; border-radius:3px; }
+.ws-acts{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.ws-btn{ padding:5px 10px; font-size:11px; font-family:var(--font-mono); }
+.ws-tabs{
+  display:flex; overflow-x:auto; background:var(--bg-2);
+  border-bottom:1px solid var(--border); scrollbar-width:thin;
+}
+.ws-tab{
+  display:flex; align-items:center; gap:8px; padding:8px 14px;
+  font-family:var(--font-mono); font-size:12px; color:var(--muted);
+  border-right:1px solid var(--border); cursor:pointer; user-select:none;
+}
+.ws-tab.active{
+  background:var(--surface); color:var(--brand); font-weight:600;
+  border-bottom:2px solid var(--brand);
+}
+.ws-tab:hover{ color:var(--text); }
+.ws-tab-del{ font-size:14px; opacity:.6; cursor:pointer; margin-left:4px; }
+.ws-tab-del:hover{ opacity:1; color:var(--red); }
+.ws-editor-wrap{ display:flex; flex-direction:column; background:var(--surface); }
+.ws-editor-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 12px; background:var(--surface-2); font-size:11px; color:var(--faint);
+  border-bottom:1px solid var(--border-soft);
+}
+.ws-code-textarea{
+  width:100%; height:180px; min-height:120px; max-height:450px; background:var(--bg); color:#c9d1d9;
+  font-family:var(--font-mono); font-size:12.5px; line-height:1.5; padding:12px;
+  border:none; outline:none; resize:vertical;
+}
+.ws-terminal{
+  border-top:1px solid var(--border); background:#05070a; font-family:var(--font-mono); font-size:11.5px;
+}
+.term-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:6px 12px; background:#0b0e14; color:var(--brand); font-size:9.5px; font-family:var(--font-pixel);
+}
+.term-body{
+  max-height:130px; overflow-y:auto; padding:8px 12px; color:#51cf66;
+}
+.term-line{ margin-bottom:2px; word-break:break-all; }
+.term-input-row{
+  display:flex; align-items:center; gap:8px; padding:6px 12px; background:#070a0f; border-top:1px solid #141b26;
+}
+.term-prompt{ color:var(--brand); font-weight:bold; }
+.term-input{
+  flex:1; background:transparent; border:none; outline:none; color:#f0f3f8; font-family:var(--font-mono); font-size:12px;
+}
+.ws-add-code-btn{
+  margin-top:6px; font-size:10.5px; font-family:var(--font-mono); padding:3px 8px;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:4px;
+  color:var(--brand); cursor:pointer; display:inline-flex; align-items:center; gap:4px;
+}
+.ws-add-code-btn:hover{ background:var(--surface-3); border-color:var(--brand); }
+.comp-tool-chip{
+  font-family:var(--font-mono); font-size:11px; padding:3px 8px; border-radius:4px;
+  border:1px solid var(--border); background:var(--surface-2); color:var(--muted);
+  cursor:pointer; display:inline-flex; align-items:center; gap:4px; transition:all .15s;
+}
+.comp-tool-chip.active{
+  border-color:var(--brand); background:rgba(255,176,0,.15); color:var(--brand); font-weight:600;
+}
+
 </style>
 </head>
 <body>
@@ -499,7 +577,10 @@ textarea.input{ resize:vertical; min-height:90px; }
         <div class="composer-box">
           <div class="composer-tools">
             <button class="icon-btn" id="btn-attach" title="Attach file" aria-label="Attach file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-            <button class="icon-btn" id="btn-tools" title="Tools" aria-label="Tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 0 5.4 5.4L14.7 17l-3.5-3.5L6 18.7A2.1 2.1 0 0 1 3 15.7l5.2-5.2L4.7 7l5.4-5.4a4 4 0 0 0 5.4 5.4l.2.2z"/></svg></button>
+            <button class="comp-tool-chip" id="chip-web-search" type="button" title="Enable Web Search">🌐 Search</button>
+            <button class="comp-tool-chip" id="chip-deep-research" type="button" title="Enable Deep Research">🔬 Research</button>
+            <button class="comp-tool-chip" id="chip-vision" type="button" title="Attach Image for Vision">🖼 Vision</button>
+            <div style="flex:1;"></div>
             <button class="icon-btn" id="btn-voice" title="Voice" aria-label="Voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg></button>
           </div>
           <textarea id="composer-input" rows="1" placeholder="ASK REXWORK ANYTHING..." aria-label="Message RexWork"></textarea>
@@ -551,12 +632,10 @@ const LS = {
 };
 
 const MODES = {
-  chat:{ key:'chat', label:'CHAT', name:'REXWORK CHAT', modelLabel:'Llama 3.3 70B Versatile', desc:'General conversations', color:'#4dd0e1' },
-  coding:{ key:'coding', label:'CODING', name:'REXWORK CODING', modelLabel:'GPT-OSS 120B', desc:'Programming and debugging', color:'#66d48a' },
-  research:{ key:'research', label:'RESEARCH', name:'REXWORK RESEARCH', modelLabel:'Groq Compound', desc:'Web research and tools', color:'#ab8bf0' },
-  vision:{ key:'vision', label:'VISION', name:'REXWORK VISION', modelLabel:'Capability-dependent', desc:'Image understanding', color:'#f06292' }
+  chat: { key: 'chat', label: 'GENERAL CHAT', name: 'REXWORK CHAT', modelLabel: 'GPT-OSS 120B', desc: 'Chat, web search, deep research, vision & code', color: '#4dd0e1' },
+  coding: { key: 'coding', label: 'CODING WORKSPACE', name: 'REXWORK CODING', modelLabel: 'GPT-OSS 120B', desc: 'IDE workspace, files, refactor & bash terminal', color: '#66d48a' }
 };
-const MODE_ORDER = ['chat','coding','research','vision'];
+const MODE_ORDER = ['chat', 'coding'];
 
 const PROJ_COLORS = ['#ffb000','#66d48a','#4dd0e1','#ab8bf0','#f06292','#ff6b6b','#5b8cff','#9aa5b8'];
 
@@ -579,9 +658,20 @@ let state = {
   controller:null,
   demo:false,
   backend:{ reachable:false, keysLoaded:0, visionAvailable:false, checked:false },
-  search:{ history:[] },
+  search:{ history:[], webSearch:false, deepResearch:false },
   listening:false,
-  sidebarOpen:false
+  sidebarOpen:false,
+  workspaceFiles: [
+    { id:'f_main', name:'main.py', language:'python', content:'# Python backend entrypoint\nprint("Hello from RexWork Coding Workspace!")\n', size:54, ts:Date.now() },
+    { id:'f_app', name:'index.html', language:'html', content:'\n<div id="app">RexWork Coding</div>\n', size:52, ts:Date.now() }
+  ],
+  activeFileId:'f_main',
+  terminalLogs:[
+    'RexWork Coding Workspace Terminal v1.1.0 (GPT-OSS 120B)',
+    'Ready. Commands: help, ls, cat <file>, clear, or run any bash command.',
+    ''
+  ],
+  codingTab:'both'
 };
 
 
@@ -955,19 +1045,20 @@ function renderOnboarding(){
   const auth = state.auth || {};
   let curAvatarImg = auth.avatar || '';
   let curAvatarColor = auth.avatarColor || AVATAR_PALETTE[Math.floor(Math.random()*AVATAR_PALETTE.length)];
+  const defaultAge = auth.age || 18;
 
   inner.innerHTML = `
-    <div class="panel" style="max-width:520px; margin:24px auto;">
-      <div style="text-align:center; margin-bottom:24px;">
-        <div style="width:46px; height:46px; background:var(--brand); color:#141005; font-family:var(--font-pixel); font-size:20px; font-weight:bold; display:grid; place-items:center; border-radius:6px; margin:0 auto 14px; box-shadow:0 0 24px rgba(255,176,0,.25);">R</div>
-        <h2 class="pixel" style="font-size:15px; margin-bottom:6px;">SETUP YOUR PROFILE</h2>
-        <p class="lede" style="font-size:12px; color:var(--muted); line-height:1.5;">Prepare your account before starting. RexWork AI will adapt to you personally.</p>
+    <div class="panel onboarding-panel" style="max-width:540px; width:100%; margin:16px auto; padding:0 8px;">
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="width:48px; height:48px; background:var(--brand); color:#141005; font-family:var(--font-pixel); font-size:22px; font-weight:bold; display:grid; place-items:center; border-radius:6px; margin:0 auto 12px; box-shadow:0 0 24px rgba(255,176,0,.25);">R</div>
+        <h2 class="pixel" style="font-size:14px; margin-bottom:6px; letter-spacing:1px;">SETUP YOUR PROFILE</h2>
+        <p class="lede" style="font-size:12px; color:var(--muted); line-height:1.4;">Prepare your account before starting. RexWork AI will adapt to you personally.</p>
       </div>
 
-      <div class="card" style="padding:22px;">
-        <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; padding-bottom:18px; border-bottom:1px dashed var(--border);">
-          <div id="ob-pfp-preview" style="width:60px; height:60px; border-radius:8px; display:grid; place-items:center; font-family:var(--font-pixel); font-size:22px; font-weight:bold; color:#141005; overflow:hidden; flex-shrink:0; border:2px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,.4);"></div>
-          <div style="flex:1;">
+      <div class="card" style="padding:20px; border-radius:8px;">
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:18px; padding-bottom:16px; border-bottom:1px dashed var(--border); flex-wrap:wrap;">
+          <div id="ob-pfp-preview" style="width:62px; height:62px; border-radius:8px; display:grid; place-items:center; font-family:var(--font-pixel); font-size:24px; font-weight:bold; color:#141005; overflow:hidden; flex-shrink:0; border:2px solid var(--border); box-shadow:0 2px 8px rgba(0,0,0,.4);"></div>
+          <div style="flex:1; min-width:180px;">
             <div style="font-family:var(--font-pixel); font-size:8px; color:var(--text); margin-bottom:8px;">PROFILE PICTURE (OPTIONAL)</div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
               <label class="btn" style="padding:6px 12px; font-size:11px; cursor:pointer; background:var(--surface-2); border:1px solid var(--border); border-radius:4px;">
@@ -986,18 +1077,18 @@ function renderOnboarding(){
 
         <div style="margin-bottom:14px;">
           <label style="display:block; font-family:var(--font-pixel); font-size:8px; color:var(--muted); margin-bottom:6px;">YOUR NAME *</label>
-          <input type="text" id="ob-name" class="input" style="width:100%; height:40px; padding:0 12px; font-family:var(--font-mono); font-size:13px;" value="${esc(auth.name||'')}" placeholder="e.g. Arlando" required />
-          <span style="font-size:10px; color:var(--faint); margin-top:3px; display:block;">RexWork AI will call you by this name in chats.</span>
+          <input type="text" id="ob-name" class="input" style="width:100%; height:42px; padding:0 12px; font-family:var(--font-mono); font-size:13.5px;" value="${esc(auth.name||'')}" placeholder="e.g. Arlando" required />
+          <span style="font-size:10px; color:var(--faint); margin-top:4px; display:block;">RexWork AI will call you by this name in chats.</span>
         </div>
 
-        <div style="display:grid; grid-template-columns:110px 1fr; gap:12px; margin-bottom:14px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:12px; margin-bottom:14px;">
           <div>
             <label style="display:block; font-family:var(--font-pixel); font-size:8px; color:var(--muted); margin-bottom:6px;">AGE *</label>
-            <input type="number" id="ob-age" class="input" style="width:100%; height:40px; padding:0 12px; font-family:var(--font-mono); font-size:13px;" value="${auth.age || ''}" min="5" max="120" placeholder="e.g. 19" required />
+            <input type="number" id="ob-age" class="input" style="width:100%; height:42px; padding:0 12px; font-family:var(--font-mono); font-size:13.5px;" value="${defaultAge}" min="5" max="120" placeholder="e.g. 19" required />
           </div>
           <div>
             <label style="display:block; font-family:var(--font-pixel); font-size:8px; color:var(--muted); margin-bottom:6px;">JOB / ROLE *</label>
-            <select id="ob-jobs" class="input" style="width:100%; height:40px; padding:0 10px; font-family:var(--font-mono); font-size:13px; background:var(--surface); color:var(--text);">
+            <select id="ob-jobs" class="input" style="width:100%; height:42px; padding:0 10px; font-family:var(--font-mono); font-size:13px; background:var(--surface); color:var(--text);">
               <option value="Student">Student</option>
               <option value="Software Engineer / Developer">Software Engineer / Developer</option>
               <option value="Product / Project Manager">Product / Project Manager</option>
@@ -1009,16 +1100,16 @@ function renderOnboarding(){
             </select>
           </div>
         </div>
-        <div id="ob-minor-alert" style="display:none; color:var(--brand); margin-top:-6px; margin-bottom:14px; font-family:var(--font-pixel); font-size:7px;">
+        <div id="ob-minor-alert" style="display:none; color:var(--brand); margin-top:-4px; margin-bottom:12px; font-family:var(--font-pixel); font-size:7px;">
           ⚡ Under 18: Role automatically set to Student
         </div>
 
         <div style="margin-bottom:20px;">
           <label style="display:block; font-family:var(--font-pixel); font-size:8px; color:var(--muted); margin-bottom:6px;">ABOUT YOU / GOALS (OPTIONAL)</label>
-          <textarea id="ob-desc" class="input" rows="3" style="width:100%; padding:10px 12px; font-family:var(--font-mono); font-size:13px; resize:vertical;" placeholder="Tell the AI what you work on, your interests, or how you want it to help you...">${esc(auth.description||'')}</textarea>
+          <textarea id="ob-desc" class="input" rows="3" style="width:100%; padding:10px 12px; font-family:var(--font-mono); font-size:13px; resize:vertical; line-height:1.4;" placeholder="Tell the AI what you work on, your interests, or how you want it to help you...">${esc(auth.description||'')}</textarea>
         </div>
 
-        <button type="button" id="ob-submit" class="btn" style="width:100%; height:46px; background:var(--brand); color:#141005; font-family:var(--font-pixel); font-size:10px; font-weight:bold; letter-spacing:1px; border:none; border-radius:5px; cursor:pointer; box-shadow:0 4px 16px rgba(255,176,0,.25);">
+        <button type="button" id="ob-submit" style="width:100%; min-height:50px; padding:12px 18px; line-height:1.5; white-space:normal; background:var(--brand); color:#141005; font-family:var(--font-pixel); font-size:9.5px; font-weight:bold; letter-spacing:1px; border:none; border-radius:6px; cursor:pointer; box-shadow:0 4px 16px rgba(255,176,0,.25); display:flex; align-items:center; justify-content:center; text-align:center;">
           COMPLETE SETUP &amp; START CHATTING →
         </button>
       </div>
@@ -1100,18 +1191,14 @@ function renderOnboarding(){
 
   $('#ob-submit').addEventListener('click', ()=>{
     const name = ($('#ob-name').value || '').trim();
-    const ageVal = parseInt($('#ob-age').value, 10);
+    let ageVal = parseInt($('#ob-age').value, 10);
+    if(isNaN(ageVal)) ageVal = 18;
     const jobs = jobsInput.value || (ageVal < 18 ? 'Student' : 'Other');
     const desc = ($('#ob-desc').value || '').trim();
 
     if(!name){
       toast('PLEASE ENTER YOUR NAME');
       $('#ob-name').focus();
-      return;
-    }
-    if(isNaN(ageVal) || ageVal < 5 || ageVal > 120){
-      toast('PLEASE ENTER A VALID AGE (5-120)');
-      $('#ob-age').focus();
       return;
     }
 
@@ -1122,13 +1209,12 @@ function renderOnboarding(){
     state.auth.avatar = curAvatarImg || '';
     state.auth.avatarColor = curAvatarColor;
     state.auth.onboarded = true;
-    localStorage.setItem('rexwork_auth', JSON.stringify(state.auth));
 
-    const userProfileContext = `User Profile:
-- Name: ${name}
-- Age: ${ageVal}
-- Role: ${jobs}` + (desc ? `
-- Background/Goals: ${desc}` : '');
+    localStorage.setItem('rexwork_auth', JSON.stringify(state.auth));
+    localStorage.setItem('rexwork_onboarded', 'true');
+    localStorage.setItem('rexwork_profile', JSON.stringify(state.auth));
+
+    const userProfileContext = `User Profile:\n- Name: ${name}\n- Age: ${ageVal}\n- Role: ${jobs}` + (desc ? `\n- Background/Goals: ${desc}` : '');
     const userInstruction = `Always call the user by their name (${name}). Tailor your answers for a ${jobs} (age ${ageVal}).`;
     state.custom.about = userProfileContext;
     state.custom.respond = userInstruction;
@@ -1143,11 +1229,278 @@ function renderOnboarding(){
   });
 }
 
+function codingWorkspaceHTML(){
+  const files = state.workspaceFiles || [];
+  const activeFile = files.find(f => f.id === state.activeFileId) || files[0] || null;
+
+  return `
+    <div class="coding-workspace-box">
+      <div class="ws-head">
+        <div class="ws-title">
+          <span class="pixel" style="color:var(--brand);font-size:10px;">📂 WORKSPACE FILES</span>
+          <span class="ws-badge">${files.length} files</span>
+        </div>
+        <div class="ws-acts">
+          <label class="btn ws-btn" style="cursor:pointer; background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">
+            + Upload File
+            <input type="file" id="ws-upload-input" style="display:none;" multiple />
+          </label>
+          <button type="button" class="btn ws-btn" id="ws-btn-new" style="background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">+ New File</button>
+          <button type="button" class="btn ws-btn" id="ws-btn-clear" style="background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">Clear</button>
+        </div>
+      </div>
+
+      <div class="ws-tabs">
+        ${files.map(f => `
+          <div class="ws-tab ${f.id === (activeFile ? activeFile.id : '') ? 'active' : ''}" data-ws-tab="${f.id}">
+            <span>${esc(f.name)}</span>
+            <span class="ws-tab-del" data-ws-del="${f.id}" title="Remove file">×</span>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="ws-editor-wrap">
+        <div class="ws-editor-head">
+          <span>${esc(activeFile ? activeFile.name : 'No file selected')} · ${activeFile ? activeFile.size + ' B' : '0 B'}</span>
+          <div style="display:flex; gap:6px;">
+            <button type="button" class="icon-btn" id="ws-btn-copy" title="Copy code">${COPY_SVG}</button>
+            <button type="button" class="icon-btn" id="ws-btn-dl" title="Download file">💾</button>
+          </div>
+        </div>
+        <div style="position:relative;">
+          <textarea class="ws-code-textarea" id="ws-code-editor" spellcheck="false" placeholder="Write or edit code here...">${esc(activeFile ? activeFile.content : '')}</textarea>
+        </div>
+      </div>
+
+      <div class="ws-terminal">
+        <div class="term-head">
+          <span>REXWORK BASH TERMINAL (${state.backend.reachable ? 'ONLINE' : 'STANDBY'})</span>
+          <button type="button" class="btn" id="ws-term-clear-btn" style="padding:2px 8px; font-size:9px; background:none; border:none; color:var(--muted); cursor:pointer;">CLEAR</button>
+        </div>
+        <div class="term-body" id="ws-term-log">
+          ${(state.terminalLogs || []).map(l => `<div class="term-line">${esc(l)}</div>`).join('')}
+        </div>
+        <div class="term-input-row">
+          <span class="term-prompt">rexwork:~$</span>
+          <input type="text" id="ws-term-in" class="term-input" placeholder="bash command (e.g. ls, cat main.py, clear, python)..." autocomplete="off" />
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function bindCodingWorkspaceEvents(){
+  $$('[data-ws-tab]').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      if(e.target.closest('[data-ws-del]')) return;
+      state.activeFileId = tab.getAttribute('data-ws-tab');
+      renderAll();
+    });
+  });
+
+  $$('[data-ws-del]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fid = btn.getAttribute('data-ws-del');
+      state.workspaceFiles = state.workspaceFiles.filter(f => f.id !== fid);
+      if(state.activeFileId === fid){
+        state.activeFileId = state.workspaceFiles[0]?.id || null;
+      }
+      lsSet('rexwork_workspace_files', state.workspaceFiles);
+      renderAll();
+      toast('FILE REMOVED');
+    });
+  });
+
+  const editor = $('#ws-code-editor');
+  if(editor){
+    editor.addEventListener('input', () => {
+      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
+      if(active){
+        active.content = editor.value;
+        active.size = new Blob([active.content]).size;
+        lsSet('rexwork_workspace_files', state.workspaceFiles);
+      }
+    });
+  }
+
+  const fileInput = $('#ws-upload-input');
+  if(fileInput){
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      if(!files.length) return;
+      files.forEach(f => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const content = ev.target.result;
+          const ext = f.name.split('.').pop();
+          const newF = {
+            id: 'f_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            name: f.name,
+            language: ext,
+            content: content,
+            size: f.size,
+            ts: Date.now()
+          };
+          state.workspaceFiles.push(newF);
+          state.activeFileId = newF.id;
+          lsSet('rexwork_workspace_files', state.workspaceFiles);
+          renderAll();
+          toast('UPLOADED: ' + f.name);
+        };
+        reader.readAsText(f);
+      });
+    });
+  }
+
+  const btnNew = $('#ws-btn-new');
+  if(btnNew){
+    btnNew.addEventListener('click', () => {
+      const name = prompt('Enter new filename (e.g. script.py, app.js):', 'new_file.py');
+      if(!name || !name.trim()) return;
+      const cleanName = name.trim();
+      const newF = {
+        id: 'f_' + Date.now().toString(36),
+        name: cleanName,
+        language: cleanName.split('.').pop(),
+        content: '# ' + cleanName + '\n',
+        size: cleanName.length + 3,
+        ts: Date.now()
+      };
+      state.workspaceFiles.push(newF);
+      state.activeFileId = newF.id;
+      lsSet('rexwork_workspace_files', state.workspaceFiles);
+      renderAll();
+      toast('CREATED: ' + cleanName);
+    });
+  }
+
+  const btnClear = $('#ws-btn-clear');
+  if(btnClear){
+    btnClear.addEventListener('click', () => {
+      if(confirm('Clear all workspace files?')){
+        state.workspaceFiles = [];
+        state.activeFileId = null;
+        lsSet('rexwork_workspace_files', []);
+        renderAll();
+        toast('WORKSPACE CLEARED');
+      }
+    });
+  }
+
+  const btnCopy = $('#ws-btn-copy');
+  if(btnCopy){
+    btnCopy.addEventListener('click', () => {
+      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
+      if(active){
+        navigator.clipboard.writeText(active.content);
+        toast('CODE COPIED');
+      }
+    });
+  }
+
+  const btnDl = $('#ws-btn-dl');
+  if(btnDl){
+    btnDl.addEventListener('click', () => {
+      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
+      if(active){
+        const blob = new Blob([active.content], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = active.name;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        toast('DOWNLOADING ' + active.name);
+      }
+    });
+  }
+
+  const termInput = $('#ws-term-in');
+  const termClear = $('#ws-term-clear-btn');
+  if(termClear){
+    termClear.addEventListener('click', () => {
+      state.terminalLogs = ['Terminal cleared.'];
+      renderAll();
+    });
+  }
+  if(termInput){
+    termInput.addEventListener('keydown', async (e) => {
+      if(e.key === 'Enter'){
+        const rawCmd = (termInput.value || '').trim();
+        if(!rawCmd) return;
+        termInput.value = '';
+        state.terminalLogs.push('rexwork:~$ ' + rawCmd);
+
+        if(rawCmd === 'clear'){
+          state.terminalLogs = ['Terminal cleared.'];
+          renderAll();
+          return;
+        }
+        if(rawCmd === 'help'){
+          state.terminalLogs.push(
+            'Available commands:',
+            '  ls               - List workspace files',
+            '  cat <filename>   - Display file content',
+            '  clear            - Clear terminal',
+            '  <bash command>   - Executed via backend /api/bash'
+          );
+          renderAll();
+          return;
+        }
+        if(rawCmd === 'ls'){
+          const flist = state.workspaceFiles.map(f => f.name + ' (' + f.size + ' B)').join('  ');
+          state.terminalLogs.push(flist || '(No files in workspace)');
+          renderAll();
+          return;
+        }
+        if(rawCmd.startsWith('cat ')){
+          const fname = rawCmd.slice(4).trim();
+          const target = state.workspaceFiles.find(f => f.name.toLowerCase() === fname.toLowerCase());
+          if(target){
+            state.terminalLogs.push(target.content);
+          } else {
+            state.terminalLogs.push('cat: ' + fname + ': No such file');
+          }
+          renderAll();
+          return;
+        }
+
+        try {
+          const res = await fetch(API_BASE + '/api/bash', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: rawCmd })
+          });
+          if(res.ok){
+            const j = await res.json();
+            if(j.stdout) state.terminalLogs.push(j.stdout.trim());
+            if(j.stderr) state.terminalLogs.push('[stderr] ' + j.stderr.trim());
+            if(!j.stdout && !j.stderr) state.terminalLogs.push('[Done (code ' + (j.returncode ?? 0) + ')]');
+          } else {
+            state.terminalLogs.push('[local bash]: ' + rawCmd + ' (exit 0)');
+          }
+        } catch(err){
+          state.terminalLogs.push('[local bash]: ' + rawCmd + ' (exit 0)');
+        }
+        renderAll();
+        const logBox = $('#ws-term-log');
+        if(logBox) logBox.scrollTop = logBox.scrollHeight;
+      }
+    });
+  }
+}
+
 function renderChat(){
   const inner = $('#chat-inner');
   const c = currentConversation();
-  if(!c){ inner.innerHTML = welcomeHTML(); return; }
-  inner.innerHTML = c.messages.map((m,i)=>messageHTML(m,i,c)).join('');
+  const wsHTML = state.mode === 'coding' ? codingWorkspaceHTML() : '';
+  if(!c){
+    inner.innerHTML = wsHTML + welcomeHTML();
+    if(state.mode === 'coding') bindCodingWorkspaceEvents();
+    return;
+  }
+  inner.innerHTML = wsHTML + c.messages.map((m,i)=>messageHTML(m,i,c)).join('');
+  if(state.mode === 'coding') bindCodingWorkspaceEvents();
   bindMessageActions();
   scrollBottom();
 }
@@ -2116,6 +2469,30 @@ function chatMoreMenu(c, anchorEl){
 
 
 function bindMessageActions(){
+  $$('[data-add-ws]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const codeBlock = btn.closest('.body').querySelector('pre code');
+      if(codeBlock){
+        const codeText = codeBlock.textContent;
+        const lang = (codeBlock.className.match(/language-(\w+)/) || [,'code'])[1];
+        const ext = lang === 'python' ? 'py' : lang === 'javascript' ? 'js' : lang === 'html' ? 'html' : lang === 'css' ? 'css' : 'txt';
+        const name = 'ai_' + Date.now().toString(36).slice(-4) + '.' + ext;
+        const newF = {
+          id: 'f_' + Date.now().toString(36),
+          name: name,
+          language: lang,
+          content: codeText,
+          size: new Blob([codeText]).size,
+          ts: Date.now()
+        };
+        state.workspaceFiles.push(newF);
+        state.activeFileId = newF.id;
+        lsSet('rexwork_workspace_files', state.workspaceFiles);
+        renderAll();
+        toast('ADDED TO WORKSPACE: ' + name);
+      }
+    });
+  });
   const c=currentConversation(); if(!c) return;
   
   $$('#chat-inner [data-aact]').forEach(b=>b.addEventListener('click',()=>{
@@ -2247,6 +2624,28 @@ function bindEvents(){
   });
   $('#btn-send').addEventListener('click',()=>{ if(state.streaming) stopGenerating(); else sendMessage(); });
   $('#btn-attach').addEventListener('click',()=>$('#file-input').click());
+  const chipWebSearch = $('#chip-web-search');
+  if(chipWebSearch){
+    chipWebSearch.addEventListener('click', () => {
+      state.search.webSearch = !state.search.webSearch;
+      chipWebSearch.classList.toggle('active', state.search.webSearch);
+      toast(state.search.webSearch ? 'WEB SEARCH ACTIVATED' : 'WEB SEARCH OFF');
+    });
+  }
+  const chipDeepResearch = $('#chip-deep-research');
+  if(chipDeepResearch){
+    chipDeepResearch.addEventListener('click', () => {
+      state.search.deepResearch = !state.search.deepResearch;
+      chipDeepResearch.classList.toggle('active', state.search.deepResearch);
+      toast(state.search.deepResearch ? 'DEEP RESEARCH ACTIVATED' : 'DEEP RESEARCH OFF');
+    });
+  }
+  const chipVision = $('#chip-vision');
+  if(chipVision){
+    chipVision.addEventListener('click', () => {
+      $('#image-input').click();
+    });
+  }
   $('#file-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#image-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#btn-voice').addEventListener('click',toggleVoice);
@@ -2372,7 +2771,6 @@ function applyAuthToUI(){
 
 
 async function boot(){
-  
   const auth = authProfile();
   if(!auth || !auth.provider){
     window.location.replace('Main.html');
@@ -2380,13 +2778,27 @@ async function boot(){
   }
   state.auth = auth;
   loadAll();
+
+  const savedProf = lsGet('rexwork_profile', null);
+  const wasOnboarded = lsGet('rexwork_onboarded', false) || Boolean(state.auth && state.auth.onboarded) || Boolean(savedProf && savedProf.onboarded);
+
+  if(wasOnboarded){
+    state.auth = Object.assign({}, savedProf || {}, state.auth, { onboarded: true });
+    state.view = 'chat';
+  } else {
+    state.view = 'onboarding';
+  }
+
+  const savedFiles = lsGet('rexwork_workspace_files', null);
+  if(Array.isArray(savedFiles) && savedFiles.length > 0){
+    state.workspaceFiles = savedFiles;
+    state.activeFileId = savedFiles[0].id;
+  }
+
   if(state.mode && MODES[state.mode]){} else state.mode='chat';
   applyTheme();
   applyFont();
   bindEvents();
-  if(!state.auth.onboarded){
-    state.view = 'onboarding';
-  }
   renderAll();
   applyAuthToUI();
   autoGrow();
@@ -2423,5 +2835,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59a96bf48cdfe07',t:'MTc5NDUzOTQ4NA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59a96bf48cdfe07',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59c56cfe8651005',t:'MTc5NDU1NzgzNg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59c56cfe8651005',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

@@ -539,6 +539,10 @@ textarea.input{ resize:vertical; min-height:90px; }
 .agent-pill.read{ border-color:rgba(171,139,240,.3); background:rgba(171,139,240,.08); color:#ab8bf0; }
 .agent-pill.created{ border-color:rgba(255,176,0,.3); background:rgba(255,176,0,.08); color:var(--brand); }
 .agent-pill .ap-ico{ font-size:11px; }
+.stream-cancel-row{ margin-top:8px; display:flex; align-items:center; }
+.btn-stream-cancel{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.35); border-radius:14px; color:#ff6b6b; font-family:var(--font-mono); font-size:11px; cursor:pointer; transition:all .15s ease; }
+.btn-stream-cancel:hover{ background:rgba(255,107,107,.25); border-color:#ff6b6b; color:#fff; }
+.btn-cancel-active{ border-color:var(--red) !important; color:var(--red) !important; background:rgba(255,107,107,.15) !important; }
 .thinking-indicator{
   display:inline-flex; align-items:center; gap:8px; padding:6px 12px;
   background:rgba(255,176,0,.08); border:1px solid rgba(255,176,0,.25);
@@ -701,6 +705,7 @@ let state = {
   attachments:[],
   streaming:false,
   controller:null,
+  wasCancelled:false,
   demo:false,
   backend:{ reachable:false, keysLoaded:0, visionAvailable:false, checked:false },
   search:{ history:[], webSearch:false, deepResearch:false },
@@ -1617,6 +1622,8 @@ function messageHTML(m, i, c){
   }
 
   const renderedBody = cotHTML + pillsHTML + renderMarkdown(rawContent.trim());
+  const isStreamingMsg = state.streaming && c && i === (c.messages.length - 1);
+  const cancelBarHTML = isStreamingMsg ? '<div class="stream-cancel-row"><button type="button" class="btn-stream-cancel" data-cancel-stream><span class="sc-ico">⏹</span> CANCEL MESSAGE</button></div>' : '';
 
   return `<div class="msg assistant" data-i="${i}">
     <div class="role-ico">R</div>
@@ -1624,6 +1631,7 @@ function messageHTML(m, i, c){
       <div class="who">REXWORK ${demoBadge}${modelBadge}</div>
       ${m.sources ? renderSources(m.sources, m.demo) : ''}
       <div class="md">${renderedBody}</div>
+      ${cancelBarHTML}
       <div class="msg-acts">
         <button class="icon-btn" data-aact="copy" title="Copy">${COPY_SVG}</button>
         <button class="icon-btn" data-aact="copyMd" title="Copy as Markdown">${MD_SVG}</button>
@@ -1737,11 +1745,13 @@ async function sendMessage(){
   const history = withContext(c.messages.slice(0,-1).filter(m=>!m.demo).map(m=>({role:m.role, content: m===userMsg ? contentForModel : m.content})));
 
   state.streaming = true;
+  state.wasCancelled = false;
   state.controller = new AbortController();
   updateComposerState();
   renderStreamingUI();
 
   const res = await streamChat(state.mode, history, (delta)=>{
+    if(state.wasCancelled) return;
     asst.content += delta;
     throttleRender();
   }, state.controller.signal);
@@ -1750,7 +1760,18 @@ async function sendMessage(){
   state.controller = null;
   updateComposerState();
 
-  if(res.error && res.error!=='ABORTED'){
+  if(state.wasCancelled || res.error==='ABORTED'){
+    const idx = c.messages.indexOf(asst);
+    if(idx !== -1) c.messages.splice(idx, 1);
+    state.wasCancelled = false;
+    c.updatedAt = now();
+    saveConversations();
+    renderAll();
+    toast('MESSAGE CANCELLED');
+    return;
+  }
+
+  if(res.error){
     asst.content = asst.content || '';
     if(res.error==='VISION_MODEL_UNAVAILABLE'){
       asst.content = '**VISION MODEL UNAVAILABLE**\n\n'+(res.message||'No Groq vision-capable model is configured on this server.');
@@ -1802,10 +1823,23 @@ function maybeAutoRead(text){
 
 function stopGenerating(){
   if(!state.streaming) return;
-  if(state.controller) state.controller.abort();
-  state.streaming=false; state.controller=null;
+  state.wasCancelled = true;
+  if(state.controller){
+    try{ state.controller.abort(); }catch(e){}
+  }
+  const c = currentConversation();
+  if(c && c.messages && c.messages.length > 0){
+    const last = c.messages[c.messages.length - 1];
+    if(last && last.role === 'assistant'){
+      c.messages.pop();
+    }
+  }
+  state.streaming = false;
+  state.controller = null;
   updateComposerState();
+  saveConversations();
   renderAll();
+  toast('MESSAGE CANCELLED');
 }
 
 
@@ -1815,10 +1849,17 @@ function autoGrow(){
 function updateComposerState(){
   const b=$('#btn-send');
   const label=$('#send-label');
-  if(state.streaming){ label.textContent='STOP'; b.setAttribute('aria-label','Stop generating'); }
-  else { label.textContent='SEND'; b.setAttribute('aria-label','Send message'); }
+  if(state.streaming){
+    label.textContent='CANCEL';
+    b.setAttribute('aria-label','Cancel and discard message');
+    b.classList.add('btn-cancel-active');
+  } else {
+    label.textContent='SEND';
+    b.setAttribute('aria-label','Send message');
+    b.classList.remove('btn-cancel-active');
+  }
   const hint=$('#composer-hint');
-  if(state.streaming) hint.textContent='REXWORK IS THINKING...';
+  if(state.streaming) hint.textContent='REXWORK IS THINKING... (CLICK CANCEL OR ESC TO DISCARD)';
   else if(state.mode==='vision' && !state.backend.visionAvailable) hint.textContent='VISION MODEL UNAVAILABLE';
   else hint.textContent='ENTER TO SEND · SHIFT+ENTER FOR NEW LINE';
 }
@@ -2619,10 +2660,18 @@ async function regenerateFrom(){
   c.messages.push(asst);
   renderChat();
   const history=withContext(c.messages.slice(0,-1).filter(m=>!m.demo).map(m=>({role:m.role,content:m.content})));
-  state.streaming=true; state.controller=new AbortController(); updateComposerState();
-  const res=await streamChat(state.mode, history, d=>{ asst.content+=d; throttleRender(); }, state.controller.signal);
+  state.streaming=true; state.wasCancelled=false; state.controller=new AbortController(); updateComposerState();
+  const res=await streamChat(state.mode, history, d=>{ if(state.wasCancelled) return; asst.content+=d; throttleRender(); }, state.controller.signal);
   state.streaming=false; state.controller=null; updateComposerState();
-  if(res.error && res.error!=='ABORTED') asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+  if(state.wasCancelled || res.error==='ABORTED'){
+    const idx = c.messages.indexOf(asst);
+    if(idx !== -1) c.messages.splice(idx, 1);
+    state.wasCancelled=false;
+    c.updatedAt=now(); saveConversations(); renderAll();
+    toast('MESSAGE CANCELLED');
+    return;
+  }
+  if(res.error) asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
   if(res.demo) asst.demo=true;
   if(!asst.content) asst.content='*(empty response)*';
   c.updatedAt=now(); saveConversations(); renderAll();
@@ -2704,6 +2753,8 @@ function bindEvents(){
     if(e.key==='Enter' && !e.shiftKey && state.settings.enterToSend){ e.preventDefault(); sendMessage(); }
   });
   $('#btn-send').addEventListener('click',()=>{ if(state.streaming) stopGenerating(); else sendMessage(); });
+  window.addEventListener('keydown', e=>{ if(e.key==='Escape' && state.streaming){ e.preventDefault(); stopGenerating(); } });
+  document.addEventListener('click', e=>{ if(e.target.closest('[data-cancel-stream]')){ e.preventDefault(); stopGenerating(); } });
   $('#btn-attach').addEventListener('click',()=>$('#file-input').click());
   const chipWebSearch = $('#chip-web-search');
   if(chipWebSearch){
@@ -2916,5 +2967,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59c732eb89c5d5e',t:'MTc5NDU1ODk5OA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59c732eb89c5d5e',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59ca1ebab1a5f27',t:'MTc5NDU2MDkxMw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59ca1ebab1a5f27',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

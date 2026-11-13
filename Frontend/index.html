@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<!-- DEPLOY: isi content dengan URL backend Vercel, mis. https://rexwork-api.vercel.app
-     (kosongkan untuk dev lokal — Same origin / fallback otomatis) -->
-<meta name="rexwork-api" content="" />
+<!-- Backend Vercel URL -->
+<meta name="rexwork-api" content="https://rexworks-backend.vercel.app" />
 <meta name="color-scheme" content="dark light" />
 <title>RexWork — One workspace. Every way to think.</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -708,36 +707,46 @@ function loadAll(){
 /* ============================================================
    BACKEND
    ============================================================ */
-/* Base URL backend API. '' = same origin.
-   Lokal: fallback otomatis ke uvicorn di 127.0.0.1:8000.
-   Produksi (hosting terpisah): fallback ke URL di <meta name="rexwork-api"> */
-const IS_LOCAL_HOST = ['localhost', '127.0.0.1'].includes(location.hostname);
+/* Base URL backend API.
+   Prioritas probe koneksi:
+   1. META_API_BASE (URL backend Vercel: https://rexworks-backend.vercel.app)
+   2. '' (same-origin jika diserve backend langsung)
+   3. 'http://127.0.0.1:8000' (uvicorn lokal)
+*/
 const META_API_BASE = ((document.querySelector('meta[name="rexwork-api"]') || {}).content || '').trim().replace(/\/+$/, '');
-let API_BASE = '';
-const API_FALLBACK = IS_LOCAL_HOST
-  ? 'http://127.0.0.1:8000'
-  : META_API_BASE;
+let API_BASE = META_API_BASE || '';
 
 async function probeHealth(base){
-  const r = await fetch(base + '/api/health', {signal:AbortSignal.timeout(4000)});
+  const url = (base ? base.replace(/\/+$/, '') : '') + '/api/health';
+  const r = await fetch(url, { signal: AbortSignal.timeout(4500) });
   if(!r.ok) throw new Error('health:' + r.status);
   return await r.json();
 }
 
 async function checkBackend(){
-  try{
-    const j = await probeHealth(API_BASE);
-    state.backend = { reachable:true, keysLoaded:j.keys_loaded||0, visionAvailable:!!j.vision_available, checked:true };
-    return;
-  }catch(e){}
-  if(API_FALLBACK && API_BASE!==API_FALLBACK){
-    try{
-      const j = await probeHealth(API_FALLBACK);
-      API_BASE = API_FALLBACK; // backend ketemu: pakai base ini untuk semua request API
-      state.backend = { reachable:true, keysLoaded:j.keys_loaded||0, visionAvailable:!!j.vision_available, checked:true };
+  // Cek berurutan kandidat backend sampai nemu yang online
+  const candidates = [
+    META_API_BASE,
+    '',
+    'http://127.0.0.1:8000'
+  ].filter((v, idx, arr) => arr.indexOf(v) === idx);
+
+  for (const cand of candidates) {
+    try {
+      const j = await probeHealth(cand);
+      API_BASE = cand; // pasang target yang berhasil merespons
+      state.backend = {
+        reachable: true,
+        keysLoaded: j.keys_loaded || 0,
+        visionAvailable: !!j.vision_available,
+        checked: true
+      };
       return;
-    }catch(e){}
+    } catch (e) {
+      // lanjut coba kandidat berikutnya
+    }
   }
+
   state.backend = { reachable:false, keysLoaded:0, visionAvailable:false, checked:true };
 }
 
@@ -2252,6 +2261,10 @@ function applyAuthToUI(){
     }
   }
 }
+
+/* ============================================================
+   BOOT
+   ============================================================ */
 async function boot(){
   // auth gate: verifikasi session Supabase / token Google redirect
   const auth = await resolveAuth();

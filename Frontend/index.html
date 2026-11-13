@@ -80,9 +80,66 @@ a{ color:var(--cyan); }
   border-right:1px solid var(--border-soft);
   display:flex;
   flex-direction:column;
-  transition:margin-left .2s ease, transform .2s ease;
+  transition:margin-left .25s cubic-bezier(0.4, 0, 0.2, 1);
   z-index:40;
+  flex-shrink:0;
 }
+body.sidebar-collapsed #sidebar{
+  margin-left:calc(-1 * var(--sidebar-w));
+}
+body.sidebar-collapsed .chat-inner{
+  max-width:1120px;
+}
+#tb-toggle-sidebar{
+  display:grid; place-items:center; width:34px; height:34px; border-radius:var(--radius);
+  color:var(--muted); cursor:pointer; background:none; border:none;
+}
+#tb-toggle-sidebar:hover{ background:var(--surface-2); color:var(--text); }
+#tb-toggle-sidebar svg{ width:18px; height:18px; }
+.side-item .side-del-btn{
+  display:none; width:20px; height:20px; align-items:center; justify-content:center;
+  background:none; border:none; color:var(--faint); border-radius:3px; cursor:pointer;
+  font-size:12px; margin-left:auto; flex:0 0 auto;
+}
+.side-item:hover .side-del-btn{ display:inline-flex; }
+.side-item .side-del-btn:hover{ color:var(--red); background:rgba(255,107,107,.15); }
+.agent-model-picker{ position:relative; display:inline-flex; align-items:center; }
+.agent-model-btn{
+  display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:14px;
+  color:var(--text); font-family:var(--font-mono); font-size:12px; font-weight:500;
+  cursor:pointer; transition:all .15s ease;
+}
+.agent-model-btn:hover{ border-color:var(--brand); background:var(--surface-3); }
+.amb-dot{ width:8px; height:8px; border-radius:50%; background:#4dd0e1; flex-shrink:0; }
+.amb-name{ letter-spacing:.3px; }
+.amb-arrow{ font-size:10px; color:var(--muted); transition:transform .2s; }
+.agent-model-menu{
+  position:absolute; bottom:calc(100% + 8px); left:0; width:280px;
+  background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+  box-shadow:0 12px 32px rgba(0,0,0,.6); padding:6px; z-index:100;
+}
+.amm-header{
+  font-family:var(--font-pixel); font-size:8px; color:var(--muted); padding:6px 8px 4px;
+  letter-spacing:1px;
+}
+.amm-item{
+  display:flex; align-items:center; gap:10px; width:100%; padding:8px;
+  background:none; border:none; border-radius:6px; text-align:left; cursor:pointer;
+  transition:background .15s;
+}
+.amm-item:hover{ background:var(--surface-3); }
+.amm-item.active{ background:rgba(255,176,0,.1); }
+.amm-dot{ width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.amm-info{ flex:1; min-width:0; }
+.amm-title{ font-family:var(--font-mono); font-size:13px; font-weight:500; color:var(--text); display:flex; align-items:center; gap:6px; }
+.amm-tag{
+  font-family:var(--font-pixel); font-size:7px; padding:2px 5px; border-radius:3px;
+  background:rgba(77,208,225,.15); color:#4dd0e1;
+}
+.amm-tag.coding{ background:rgba(255,176,0,.15); color:var(--brand); }
+.amm-tag.vision{ background:rgba(102,212,138,.15); color:var(--green); }
+.amm-sub{ font-size:11px; color:var(--muted); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #sidebar .side-scroll{ flex:1; overflow-y:auto; padding:10px 10px 24px; }
 .side-sec{ margin-top:16px; }
 .side-sec-head{
@@ -585,7 +642,7 @@ textarea.input{ resize:vertical; min-height:90px; }
       <div class="user-row" id="btn-settings-row" role="button" tabindex="0">
         <div class="avatar">A</div>
         <div>
-          <div class="who">ARLANDO</div>
+          <div class="who">USER</div>
           <div class="sub">PERSONAL REXWORK WORKSPACE</div>
         </div>
         <div class="spacer"></div>
@@ -598,12 +655,7 @@ textarea.input{ resize:vertical; min-height:90px; }
   
   <main id="main">
     <header id="topbar">
-      <button class="tb-btn" id="tb-menu" aria-label="Open menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
-      <button class="mode-chip" id="mode-chip" aria-haspopup="listbox" aria-expanded="false">
-        <span class="dot" id="mode-chip-dot"></span>
-        <span id="mode-chip-label">CHAT</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
+      <button class="tb-btn" id="tb-toggle-sidebar" title="Toggle Sidebar (Ctrl+B)" aria-label="Toggle Sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg></button>
       <div class="topbar-title"><span class="tt" id="topbar-title">REXWORK</span></div>
       <span class="demo-flag hidden" id="demo-flag">DEMO MODE</span>
       <button class="tb-btn" id="tb-search" title="Search (Ctrl+K)" aria-label="Search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></button>
@@ -625,6 +677,37 @@ textarea.input{ resize:vertical; min-height:90px; }
         <div id="attach-row" class="attach-row"></div>
         <div class="composer-box">
           <div class="composer-tools">
+            <div class="agent-model-picker" id="agent-model-picker">
+              <button type="button" class="agent-model-btn" id="agent-model-btn" aria-haspopup="true" aria-expanded="false" title="Switch AI Agent">
+                <span class="amb-dot" id="agent-dot"></span>
+                <span class="amb-name" id="agent-name">Brax</span>
+                <span class="amb-arrow">▾</span>
+              </button>
+              <div class="agent-model-menu hidden" id="agent-model-menu">
+                <div class="amm-header">SELECT AI AGENT</div>
+                <button type="button" class="amm-item" data-select-mode="chat">
+                  <span class="amm-dot" style="background:#4dd0e1;"></span>
+                  <div class="amm-info">
+                    <div class="amm-title">Brax <span class="amm-tag">CHAT</span></div>
+                    <div class="amm-sub">Conversational AI &amp; general reasoning</div>
+                  </div>
+                </button>
+                <button type="button" class="amm-item" data-select-mode="coding">
+                  <span class="amm-dot" style="background:#ffb000;"></span>
+                  <div class="amm-info">
+                    <div class="amm-title">Arlon-powered 2 <span class="amm-tag coding">CODING</span></div>
+                    <div class="amm-sub">Autonomous coding agent &amp; workspace</div>
+                  </div>
+                </button>
+                <button type="button" class="amm-item" data-select-mode="vision">
+                  <span class="amm-dot" style="background:#66d48a;"></span>
+                  <div class="amm-info">
+                    <div class="amm-title">Brax Vision <span class="amm-tag vision">VISION</span></div>
+                    <div class="amm-sub">Multimodal analysis &amp; image understanding</div>
+                  </div>
+                </button>
+              </div>
+            </div>
             <button class="icon-btn" id="btn-attach" title="Attach file" aria-label="Attach file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
             <button class="comp-tool-chip" id="chip-web-search" type="button" title="Enable Web Search">🌐 Search</button>
             <button class="comp-tool-chip" id="chip-deep-research" type="button" title="Enable Deep Research">🔬 Research</button>
@@ -681,8 +764,9 @@ const LS = {
 };
 
 const MODES = {
-  chat: { key: 'chat', label: 'GENERAL CHAT', name: 'REXWORK CHAT', modelLabel: 'GPT-OSS 120B', desc: 'Chat, web search, deep research, vision & code', color: '#4dd0e1' },
-  coding: { key: 'coding', label: 'CODING WORKSPACE', name: 'REXWORK CODING', modelLabel: 'GPT-OSS 120B', desc: 'IDE workspace, files, refactor & bash terminal', color: '#66d48a' }
+  chat: { key: 'chat', label: 'BRAX', agentName: 'Brax', name: 'BRAX', modelLabel: 'Brax (120B)', desc: 'Fast conversational chat, reasoning & research', color: '#4dd0e1', placeholder: 'ASK BRAX ANYTHING...' },
+  coding: { key: 'coding', label: 'ARLON-POWERED 2', agentName: 'Arlon-powered 2', name: 'ARLON-POWERED 2', modelLabel: 'Arlon-powered 2 (120B)', desc: 'Autonomous coding agent, workspace & execution', color: '#ffb000', placeholder: 'ASK ARLON-POWERED 2 TO BUILD, DEBUG, OR REFACTOR...' },
+  vision: { key: 'vision', label: 'BRAX VISION', agentName: 'Brax Vision', name: 'BRAX VISION', modelLabel: 'Brax Vision', desc: 'Visual reasoning & multimodal image understanding', color: '#66d48a', placeholder: 'ASK BRAX VISION ABOUT AN IMAGE...' }
 };
 const MODE_ORDER = ['chat', 'coding'];
 
@@ -739,6 +823,20 @@ const $ = (s)=>document.querySelector(s);
 const $$ = (s)=>Array.from(document.querySelectorAll(s));
 function el(tag, cls, html){ const n=document.createElement(tag); if(cls) n.className=cls; if(html!=null) n.innerHTML=html; return n; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function getUserDisplayName(){
+  if(state.auth){
+    if(state.auth.name && state.auth.name.trim()) return state.auth.name.trim();
+    if(state.auth.username && state.auth.username.trim()) return state.auth.username.trim();
+    if(state.auth.email && state.auth.email.trim()) return state.auth.email.split('@')[0].trim();
+  }
+  const cached = authProfile();
+  if(cached){
+    if(cached.name && cached.name.trim()) return cached.name.trim();
+    if(cached.username && cached.username.trim()) return cached.username.trim();
+    if(cached.email && cached.email.trim()) return cached.email.split('@')[0].trim();
+  }
+  return 'User';
+}
 function uid(){ return 'id_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8); }
 function now(){ return Date.now(); }
 function fmtBytes(b){ if(b==null) return ''; if(b<1024) return b+' B'; if(b<1048576) return (b/1024).toFixed(1)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
@@ -1000,43 +1098,47 @@ function renderMarkdown(src){
 
 
 function renderTopbar(){
-  const m = MODES[state.mode];
-  $('#mode-chip-dot').style.background = m.color;
-  $('#mode-chip-label').textContent = m.label;
   const c = currentConversation();
-  $('#topbar-title').textContent = c ? c.title : 'REXWORK';
+  const tt = $('#topbar-title');
+  if(tt) tt.textContent = c ? c.title : 'REXWORK';
   const df = $('#demo-flag');
-  if(isDemo()){ df.classList.remove('hidden'); } else { df.classList.add('hidden'); }
+  if(df){
+    if(isDemo()){ df.classList.remove('hidden'); } else { df.classList.add('hidden'); }
+  }
+  updateComposerAgent();
+}
+
+function updateComposerAgent(){
+  const m = MODES[state.mode] || MODES.chat;
+  const dot = $('#agent-dot');
+  if(dot) dot.style.background = m.color;
+  const name = $('#agent-name');
+  if(name) name.textContent = m.agentName;
+  const inp = $('#composer-input');
+  if(inp && !state.streaming) inp.placeholder = m.placeholder || 'ASK ' + m.agentName.toUpperCase() + ' ANYTHING...';
+  $$('.amm-item').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-select-mode') === state.mode);
+  });
 }
 
 function currentConversation(){ return state.conversations.find(c=>c.id===state.currentId) || null; }
 
 function renderSidebar(){
   const active = (c)=> c.id===state.currentId ? ' active' : '';
-  const acts = (c)=>`
-    <span class="acts">
-      <button class="icon-btn" data-act="pin" title="Pin" aria-label="Pin">${PIN_SVG}</button>
-      <button class="icon-btn" data-act="rename" title="Rename" aria-label="Rename">${EDIT_SVG}</button>
-      <button class="icon-btn" data-act="archive" title="Archive" aria-label="Archive">${ARCH_SVG}</button>
-      <button class="icon-btn" data-act="more" title="More" aria-label="More">${DOTS_SVG}</button>
-    </span>`;
-
-  
-  
-  const chatRow = (c, showPin)=>`
-    <button class="side-item${active(c)}" data-id="${c.id}" data-type="chat">
+  const chatRow = (c)=>`
+    <div class="side-item${active(c)}" data-id="${c.id}" data-type="chat" role="button" tabindex="0">
       <span class="mi" style="color:${(MODES[c.mode]||MODES.chat).color}">${MODE_ICONS[c.mode]||MODE_ICONS.chat}</span>
-      <span class="t">${esc(c.title)}</span>
-      ${showPin?'<span class="pin-dot">◆</span>':''}${acts(c)}
-    </button>`;
+      <span class="t" title="${esc(c.title)}">${esc(c.title)}</span>
+      <button type="button" class="side-del-btn" data-act="del" title="Delete conversation">✕</button>
+    </div>`;
 
-  
   const pinned = state.conversations.filter(c=>c.pinned && !c.archived).sort((a,b)=>b.updatedAt-a.updatedAt);
   const pinnedSec = $('#pinned-sec');
-  pinnedSec.classList.toggle('hidden', pinned.length===0);
-  $('#pinned-list').innerHTML = pinned.map(c=>chatRow(c,false)).join('');
+  if(pinnedSec){
+    pinnedSec.classList.toggle('hidden', pinned.length===0);
+    $('#pinned-list').innerHTML = pinned.map(c=>chatRow(c)).join('');
+  }
 
-  
   const recent = state.conversations.filter(c=>!c.archived).sort((a,b)=>b.updatedAt-a.updatedAt);
   const groups = ['TODAY','YESTERDAY','PREVIOUS 7 DAYS','OLDER'];
   let html='';
@@ -1044,11 +1146,10 @@ function renderSidebar(){
     const items = recent.filter(c=>timeGroup(c.updatedAt)===g);
     if(!items.length) return;
     html += `<div class="side-sec-head" style="margin-top:12px">${g}</div>`;
-    html += items.map(c=>chatRow(c, c.pinned)).join('');
+    html += items.map(c=>chatRow(c)).join('');
   });
   $('#recent-list').innerHTML = html || '<div class="faint" style="padding:6px 9px;font-size:13px">No conversations yet.</div>';
 
-  
   $('#proj-list').innerHTML = state.projects.map(p=>`
     <button class="proj-row" data-id="${p.id}" data-type="proj">
       <span class="swatch" style="background:${p.color}"></span>
@@ -1071,19 +1172,28 @@ function renderView(){
   }
   const chatCol = $('#chat-col');
   const comp = $('#composer');
-  if(state.view==='onboarding'){
+  if(state.view==='chat'){
     chatCol.classList.remove('hidden');
-    if(comp) comp.classList.add('hidden');
-    renderOnboarding();
-  } else {
     if(comp) comp.classList.remove('hidden');
-    if(state.view==='chat'){
+    renderChat();
+  } else {
+    if(comp) comp.classList.add('hidden');
+    if(state.view==='onboarding'){
       chatCol.classList.remove('hidden');
-      renderChat();
-    } else if(state.view==='projects'){ chatCol.classList.remove('hidden'); renderProjects(); }
-    else if(state.view==='memory'){ chatCol.classList.remove('hidden'); renderMemory(); }
-    else if(state.view==='instructions'){ chatCol.classList.remove('hidden'); renderInstructions(); }
-    else if(state.view==='settings'){ chatCol.classList.remove('hidden'); renderSettings(); }
+      renderOnboarding();
+    } else if(state.view==='settings'){
+      chatCol.classList.remove('hidden');
+      renderSettings();
+    } else if(state.view==='projects'){
+      chatCol.classList.remove('hidden');
+      renderProjects();
+    } else if(state.view==='memory'){
+      chatCol.classList.remove('hidden');
+      renderMemory();
+    } else if(state.view==='instructions'){
+      chatCol.classList.remove('hidden');
+      renderInstructions();
+    }
   }
 }
 
@@ -1127,7 +1237,7 @@ function renderOnboarding(){
 
         <div style="margin-bottom:14px;">
           <label style="display:block; font-family:var(--font-pixel); font-size:8px; color:var(--muted); margin-bottom:6px;">YOUR NAME *</label>
-          <input type="text" id="ob-name" class="input" style="width:100%; height:42px; padding:0 12px; font-family:var(--font-mono); font-size:13.5px;" value="${esc(auth.name||'')}" placeholder="e.g. Arlando" required />
+          <input type="text" id="ob-name" class="input" style="width:100%; height:42px; padding:0 12px; font-family:var(--font-mono); font-size:13.5px;" value="${esc(auth.name||'')}" placeholder="e.g. Alex" required />
           <span style="font-size:10px; color:var(--faint); margin-top:4px; display:block;">RexWork AI will call you by this name in chats.</span>
         </div>
 
@@ -1568,7 +1678,7 @@ function messageHTML(m, i, c){
     return `<div class="msg user" data-i="${i}">
       <div class="role-ico">A</div>
       <div class="body">
-        <div class="who">ARLANDO</div>
+        <div class="who">${esc(getUserDisplayName().toUpperCase())}</div>
         ${chips}
         <div class="bubble">${esc(m.content)}</div>
         <div class="msg-acts">
@@ -1628,7 +1738,7 @@ function messageHTML(m, i, c){
   return `<div class="msg assistant" data-i="${i}">
     <div class="role-ico">R</div>
     <div class="body">
-      <div class="who">REXWORK ${demoBadge}${modelBadge}</div>
+      <div class="who">${esc(m.model && m.model.includes('Arlon') ? 'ARLON-POWERED 2' : (state.mode==='coding' ? 'ARLON-POWERED 2' : (state.mode==='vision' ? 'BRAX VISION' : 'BRAX')))} ${demoBadge}${modelBadge}</div>
       ${m.sources ? renderSources(m.sources, m.demo) : ''}
       <div class="md">${renderedBody}</div>
       ${cancelBarHTML}
@@ -2231,7 +2341,7 @@ function renderMemory(){
   $('#mem-on').addEventListener('change',e=>{ state.memory.on=e.target.checked; saveMemory(); toast('MEMORY UPDATED'); });
   $('#mem-add').addEventListener('click',()=>{
     openModal(`<div class="modal-head"><span class="mh">ADD MEMORY</span><button class="icon-btn" data-close>${X_SVG}</button></div>
-      <div class="modal-body"><textarea class="input" id="mm-txt" placeholder="e.g. Arlando prefers concise answers"></textarea></div>
+      <div class="modal-body"><textarea class="input" id="mm-txt" placeholder="e.g. User prefers concise answers"></textarea></div>
       <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="mm-save">SAVE</button></div>`);
     $('#mm-save').addEventListener('click',()=>{ const v=($('#mm-txt').value||'').trim(); if(v){ state.memory.items.push(v); saveMemory(); closeModal(); renderMemory(); toast('MEMORY UPDATED'); } });
   });
@@ -2329,7 +2439,7 @@ function renderSettings(){
 
     <div class="card"><div class="card-head"><span class="lbl">ABOUT</span></div><div class="card-body">
       <div class="pixel" style="font-size:11px">REXWORK</div>
-      <div class="muted" style="font-size:13px;margin-top:3px">VERSION 1.0.0 — PERSONAL AI WORKSPACE FOR ARLANDO</div>
+      <div class="muted" style="font-size:13px;margin-top:3px">VERSION 1.1.0 — PERSONAL AI WORKSPACE</div>
     </div></div>
   </div>`;
 
@@ -2709,8 +2819,22 @@ function messageMoreMenu(i, m, anchorEl){
 }
 
 
-function closeSidebar(){ state.sidebarOpen=false; $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show'); }
-function toggleSidebar(){ state.sidebarOpen=!state.sidebarOpen; $('#sidebar').classList.toggle('open',state.sidebarOpen); $('#scrim').classList.toggle('show',state.sidebarOpen); }
+function closeSidebar(){
+  if(window.innerWidth <= 880){
+    state.sidebarOpen=false; $('#sidebar').classList.remove('open'); $('#scrim').classList.remove('show');
+  }
+}
+function toggleSidebar(){
+  if(window.innerWidth <= 880){
+    state.sidebarOpen = !state.sidebarOpen;
+    $('#sidebar').classList.toggle('open', state.sidebarOpen);
+    $('#scrim').classList.toggle('show', state.sidebarOpen);
+  } else {
+    document.body.classList.toggle('sidebar-collapsed');
+    const isCollapsed = document.body.classList.contains('sidebar-collapsed');
+    lsSet('rexwork_sidebar_collapsed', isCollapsed);
+  }
+}
 
 
 function closeAllPopovers(){ $('#mode-pop').classList.remove('open'); $('#tools-pop').classList.remove('open'); $('#mode-chip').setAttribute('aria-expanded','false'); }
@@ -2723,7 +2847,8 @@ function bindEvents(){
   $('#btn-new').addEventListener('click',()=>{ newChat(); });
   $('#btn-search').addEventListener('click',openSearch);
   $('#tb-search').addEventListener('click',openSearch);
-  $('#tb-menu').addEventListener('click',toggleSidebar);
+  const tbToggle = $('#tb-toggle-sidebar') || $('#tb-menu');
+  if(tbToggle) tbToggle.addEventListener('click', toggleSidebar);
   $('#scrim').addEventListener('click',closeSidebar);
   $('#tb-canvas').addEventListener('click',()=>{ if(state.canvas.open) closeCanvas(); else openCanvas(); });
   $('#tb-theme').addEventListener('click',toggleTheme);
@@ -2731,12 +2856,31 @@ function bindEvents(){
   $('#btn-settings-row').addEventListener('click',e=>{ if(!e.target.closest('#btn-settings')){ state.view='settings'; closeSidebar(); renderAll(); } });
   $('#btn-new-proj').addEventListener('click',()=>{ state.view='projects'; renderAll(); });
 
-  
-  $('#mode-chip').addEventListener('click',toggleModePop);
-  
-  $('#mode-pop').addEventListener('click',e=>{
-    const b=e.target.closest('[data-mode]'); if(!b) return;
-    state.mode=b.getAttribute('data-mode'); saveSelectedMode(); closeAllPopovers(); renderAll();
+  const agentModelBtn = $('#agent-model-btn');
+  const agentModelMenu = $('#agent-model-menu');
+  if(agentModelBtn && agentModelMenu){
+    agentModelBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      agentModelMenu.classList.toggle('hidden');
+    });
+    agentModelMenu.addEventListener('click', (e)=>{
+      const item = e.target.closest('[data-select-mode]');
+      if(!item) return;
+      const m = item.getAttribute('data-select-mode');
+      if(m && MODES[m]){
+        state.mode = m;
+        saveSelectedMode();
+        updateComposerAgent();
+        renderAll();
+        toast('SWITCHED TO ' + MODES[m].agentName.toUpperCase());
+      }
+      agentModelMenu.classList.add('hidden');
+    });
+  }
+  document.addEventListener('click', (e)=>{
+    if(agentModelMenu && !e.target.closest('#agent-model-picker')){
+      agentModelMenu.classList.add('hidden');
+    }
   });
 
   
@@ -2928,6 +3072,15 @@ async function boot(){
   }
 
   if(state.mode && MODES[state.mode]){} else state.mode='chat';
+  if(lsGet('rexwork_sidebar_collapsed', false)){
+    document.body.classList.add('sidebar-collapsed');
+  }
+  window.addEventListener('keydown', e=>{
+    if((e.ctrlKey || e.metaKey) && e.key.toLowerCase()==='b'){
+      e.preventDefault();
+      toggleSidebar();
+    }
+  });
   applyTheme();
   applyFont();
   bindEvents();
@@ -2967,5 +3120,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59ca1ebab1a5f27',t:'MTc5NDU2MDkxMw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59ca1ebab1a5f27',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

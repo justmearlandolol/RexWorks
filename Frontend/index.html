@@ -327,7 +327,7 @@ body.sidebar-collapsed .chat-inner{
 
 #composer{ padding:10px 16px 14px; }
 #composer-inner{ max-width:820px; margin:0 auto; }
-.composer-box{ border:1px solid var(--border); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:hidden; }
+.composer-box{ border:1px solid var(--border); border-radius:12px; background:var(--surface); box-shadow:var(--shadow); overflow:visible; }
 .composer-box:focus-within{ border-color:var(--muted); }
 .composer-tools{ display:flex; align-items:center; gap:4px; padding:6px 8px 0; }
 .composer-tools .icon-btn svg{ width:16px; height:16px; }
@@ -565,6 +565,45 @@ textarea.input{ resize:vertical; min-height:90px; }
   border-color:var(--brand); background:rgba(255,176,0,.15); color:var(--brand); font-weight:600;
 }
 
+#composer{ position:relative; }
+.composer-tools{ position:relative; }
+#search-overlay,.overlay{ z-index:300; }
+#toasts{ z-index:320; }
+.agent-model-picker{ z-index:170; }
+.agent-model-menu{ z-index:180; }
+.agent-icon,.amm-icon,.tool-menu-icon{
+  display:grid; place-items:center; flex:0 0 auto;
+}
+.agent-icon{ width:16px; height:16px; color:var(--cyan); }
+.agent-icon svg{ width:16px; height:16px; }
+.amm-icon{ width:28px; height:28px; border:1px solid var(--border); border-radius:5px; background:var(--surface); }
+.amm-icon svg{ width:16px; height:16px; }
+.amm-icon.chat{ color:var(--cyan); }
+.amm-icon.code{ color:var(--brand); }
+.amm-icon.vision{ color:var(--green); }
+.composer-add-btn{
+  width:30px; height:30px; border:1px solid var(--border); border-radius:50%; color:var(--text-soft);
+  background:var(--surface-2); transition:background .15s,border-color .15s,color .15s,transform .15s;
+}
+.composer-add-btn:hover,.composer-add-btn[aria-expanded="true"]{
+  background:var(--surface-3); border-color:var(--brand); color:var(--brand); transform:rotate(90deg);
+}
+.composer-add-btn svg{ width:17px; height:17px; }
+#tools-pop.composer-tools-pop{
+  position:fixed; z-index:190; min-width:250px; max-width:min(320px,calc(100vw - 16px)); padding:6px;
+}
+.composer-tool-item{ border-radius:6px; }
+.composer-tool-item .mi-name{ display:flex; align-items:center; gap:7px; }
+.tool-menu-icon{ width:28px; height:28px; color:var(--muted); border:1px solid var(--border); border-radius:5px; background:var(--surface); }
+.tool-menu-icon svg{ width:16px; height:16px; }
+.composer-tool-item:hover .tool-menu-icon{ color:var(--brand); border-color:var(--brand-dim); }
+.tool-status{ margin-left:auto; font-family:var(--font-pixel); font-size:7px; letter-spacing:.5px; color:var(--faint); }
+.tool-status.on{ color:var(--green); }
+@media (max-width:560px){
+  #composer{ padding:8px 8px 10px; }
+  .agent-model-menu{ width:min(280px,calc(100vw - 24px)); }
+}
+
 
 .cot-wrap{
   margin-bottom:12px; border:1px solid var(--border); border-radius:6px;
@@ -683,41 +722,32 @@ textarea.input{ resize:vertical; min-height:90px; }
           <div class="composer-tools">
             <div class="agent-model-picker" id="agent-model-picker">
               <button type="button" class="agent-model-btn" id="agent-model-btn" aria-haspopup="true" aria-expanded="false" title="Switch AI Agent">
+                <span class="agent-icon" id="agent-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.7 11.1 3.7 3.7 0 0 0 7 18.5Z"/><path d="M8.5 13h7M10 16h4"/></svg></span>
                 <span class="amb-dot" id="agent-dot"></span>
                 <span class="amb-name" id="agent-name">Brax</span>
                 <span class="amb-arrow">▾</span>
               </button>
-              <div class="agent-model-menu hidden" id="agent-model-menu">
+              <div class="agent-model-menu hidden" id="agent-model-menu" role="menu" aria-label="Select AI agent">
                 <div class="amm-header">SELECT AI AGENT</div>
-                <button type="button" class="amm-item" data-select-mode="chat">
-                  <span class="amm-dot" style="background:#4dd0e1;"></span>
+                <button type="button" class="amm-item" data-select-mode="chat" role="menuitem">
+                  <span class="amm-icon chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.7 11.1 3.7 3.7 0 0 0 7 18.5Z"/><path d="M8.5 13h7M10 16h4"/></svg></span>
                   <div class="amm-info">
                     <div class="amm-title">Brax <span class="amm-tag">CHAT</span></div>
-                    <div class="amm-sub">Conversational AI &amp; general reasoning</div>
+                    <div class="amm-sub">Conversational AI and general reasoning</div>
                   </div>
                 </button>
-                <button type="button" class="amm-item" data-select-mode="coding">
-                  <span class="amm-dot" style="background:#ffb000;"></span>
+                <button type="button" class="amm-item" data-select-mode="coding" role="menuitem">
+                  <span class="amm-icon code"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/><path d="m14 5-4 14"/></svg></span>
                   <div class="amm-info">
                     <div class="amm-title">Arlon-powered 2 <span class="amm-tag coding">CODING</span></div>
-                    <div class="amm-sub">Autonomous coding agent &amp; workspace</div>
-                  </div>
-                </button>
-                <button type="button" class="amm-item" data-select-mode="vision">
-                  <span class="amm-dot" style="background:#66d48a;"></span>
-                  <div class="amm-info">
-                    <div class="amm-title">Brax Vision <span class="amm-tag vision">VISION</span></div>
-                    <div class="amm-sub">Multimodal analysis &amp; image understanding</div>
+                    <div class="amm-sub">Autonomous coding agent and workspace</div>
                   </div>
                 </button>
               </div>
             </div>
-            <button class="icon-btn" id="btn-attach" title="Attach file" aria-label="Attach file"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></button>
-            <button class="comp-tool-chip" id="chip-web-search" type="button" title="Enable Web Search">🌐 Search</button>
-            <button class="comp-tool-chip" id="chip-deep-research" type="button" title="Enable Deep Research">🔬 Research</button>
-            <button class="comp-tool-chip" id="chip-vision" type="button" title="Attach Image for Vision">🖼 Vision</button>
-            <div style="flex:1;"></div>
-            <button class="icon-btn" id="btn-voice" title="Voice" aria-label="Voice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg></button>
+            <button type="button" class="icon-btn composer-add-btn" id="btn-tools" title="Add tools" aria-label="Open attachment and assistant tools" aria-haspopup="menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
           </div>
           <textarea id="composer-input" rows="1" placeholder="ASK REXWORK ANYTHING..." aria-label="Message RexWork"></textarea>
           <div class="composer-foot">
@@ -976,7 +1006,7 @@ async function streamChat(mode, messages, onDelta, signal){
     return { ok:false, error:'VISION_MODEL_UNAVAILABLE', message:'REXWORK VISION is not available. No Groq vision-capable model is configured.' };
   }
   try{
-    const body = { mode, messages };
+    const body = { mode, messages, tools:{ web_search:state.search.webSearch, deep_research:state.search.deepResearch } };
     const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal });
     if(!res.ok){
       let j=null; try{ j=await res.json(); }catch(e){}
@@ -1174,10 +1204,23 @@ function renderTopbar(){
   updateComposerAgent();
 }
 
+function agentModelIcon(mode){
+  const icons = {
+    chat:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.7 11.1 3.7 3.7 0 0 0 7 18.5Z"/><path d="M8.5 13h7M10 16h4"/></svg>`,
+    coding:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="8 7 3 12 8 17"/><polyline points="16 7 21 12 16 17"/><path d="m14 5-4 14"/></svg>`,
+    vision:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>`
+  };
+  return icons[mode] || icons.chat;
+}
 function updateComposerAgent(){
   const m = MODES[state.mode] || MODES.chat;
   const dot = $('#agent-dot');
   if(dot) dot.style.background = m.color;
+  const icon = $('#agent-icon');
+  if(icon){
+    icon.innerHTML = agentModelIcon(m.key);
+    icon.style.color = m.color;
+  }
   const name = $('#agent-name');
   if(name) name.textContent = m.agentName;
   const inp = $('#composer-input');
@@ -2135,47 +2178,77 @@ function positionPopover(pop, anchor){
 }
 
 
-const TOOLS = [
-  {k:'websearch', n:'WEB SEARCH', d:'Search the web for current info'},
-  {k:'deepresearch', n:'DEEP RESEARCH', d:'Multi-step research with sources'},
-  {k:'canvas', n:'CANVAS', d:'Open a document/code workspace'},
-  {k:'code', n:'CODE', d:'Switch to coding mode'},
-  {k:'data', n:'DATA ANALYSIS', d:'Analyze an uploaded dataset'},
-  {k:'image', n:'IMAGE UNDERSTANDING', d:'Switch to vision mode'},
-  {k:'calc', n:'CALCULATOR', d:'Quick calculations'},
-  {k:'study', n:'STUDY MODE', d:'Focused learning prompts'}
-];
+const COMPOSER_TOOL_ICONS = {
+  attach:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.4 11.1-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"/></svg>`,
+  vision:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>`,
+  browse:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>`,
+  voice:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>`,
+  search:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>`
+};
 function renderToolsPopover(){
-  const pop=$('#tools-pop');
-  pop.innerHTML = `<div class="pop-label">TOOLS</div>` +
-    TOOLS.map(t=>`<button class="pop-item" data-tool="${t.k}">
-      <span class="mi-ico" style="background:var(--surface-3);color:var(--muted)">◆</span>
-      <span class="mi-txt"><span class="mi-name">${t.n}</span><span class="mi-desc">${t.d}</span></span>
-    </button>`).join('');
+  const pop = $('#tools-pop');
+  const browseState = state.search.webSearch ? '<span class="tool-status on">ON</span>' : '<span class="tool-status">OFF</span>';
+  pop.className = 'popover composer-tools-pop';
+  pop.innerHTML = `<div class="pop-label">ADD TO MESSAGE</div>
+    <button class="pop-item composer-tool-item" type="button" data-composer-tool="attach">
+      <span class="tool-menu-icon">${COMPOSER_TOOL_ICONS.attach}</span>
+      <span class="mi-txt"><span class="mi-name">ATTACH FILE</span><span class="mi-desc">Upload a document, code file, or media</span></span>
+    </button>
+    <button class="pop-item composer-tool-item" type="button" data-composer-tool="vision">
+      <span class="tool-menu-icon">${COMPOSER_TOOL_ICONS.vision}</span>
+      <span class="mi-txt"><span class="mi-name">ADD IMAGE</span><span class="mi-desc">Attach an image for visual context</span></span>
+    </button>
+    <div class="pop-label">ASSISTANT TOOLS</div>
+    <button class="pop-item composer-tool-item" type="button" data-composer-tool="browse">
+      <span class="tool-menu-icon">${COMPOSER_TOOL_ICONS.browse}</span>
+      <span class="mi-txt"><span class="mi-name">WEB BROWSING</span><span class="mi-desc">Add a web-research instruction to the message</span></span>${browseState}
+    </button>
+    <button class="pop-item composer-tool-item" type="button" data-composer-tool="voice">
+      <span class="tool-menu-icon">${COMPOSER_TOOL_ICONS.voice}</span>
+      <span class="mi-txt"><span class="mi-name">VOICE INPUT</span><span class="mi-desc">Record a voice message or transcribe it</span></span>
+    </button>
+    <button class="pop-item composer-tool-item" type="button" data-composer-tool="search">
+      <span class="tool-menu-icon">${COMPOSER_TOOL_ICONS.search}</span>
+      <span class="mi-txt"><span class="mi-name">SEARCH REXWORK</span><span class="mi-desc">Search chats, projects, and files</span></span>
+    </button>`;
+}
+function positionComposerToolsPopover(pop, anchor){
+  const rect = anchor.getBoundingClientRect();
+  pop.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - 270))}px`;
+  pop.style.top = 'auto';
+  pop.style.bottom = `${Math.max(12, window.innerHeight - rect.top + 8)}px`;
 }
 function toggleToolsPop(){
-  const pop=$('#tools-pop');
+  const pop = $('#tools-pop');
+  const button = $('#btn-tools');
   const open = pop.classList.contains('open');
   closeAllPopovers();
-  if(!open){
-    renderToolsPopover();
-    pop.classList.add('open');
-    positionPopover(pop, $('#btn-tools'));
-  }
+  if(open) return;
+  renderToolsPopover();
+  pop.classList.add('open');
+  positionComposerToolsPopover(pop, button);
+  button.setAttribute('aria-expanded','true');
 }
-function handleTool(k){
+function handleComposerTool(action){
   closeAllPopovers();
-  switch(k){
-    case 'websearch': case 'deepresearch':
-      state.mode='research'; saveSelectedMode(); renderAll(); toast('RESEARCH MODE ACTIVE');
-      break;
-    case 'canvas': openCanvas(); break;
-    case 'code': state.mode='coding'; saveSelectedMode(); renderAll(); toast('CODING MODE ACTIVE'); break;
-    case 'image': state.mode='vision'; saveSelectedMode(); renderAll(); toast('VISION MODE ACTIVE'); break;
-    case 'data': dataAnalysis(); break;
-    case 'calc': openCalculator(); break;
-    case 'study': toast('STUDY MODE READY'); break;
+  if(action === 'attach'){
+    $('#file-input').click();
+    return;
   }
+  if(action === 'vision'){
+    $('#image-input').click();
+    return;
+  }
+  if(action === 'browse'){
+    state.search.webSearch = !state.search.webSearch;
+    toast(state.search.webSearch ? 'WEB BROWSING ENABLED' : 'WEB BROWSING DISABLED');
+    return;
+  }
+  if(action === 'voice'){
+    toggleVoice();
+    return;
+  }
+  if(action === 'search') openSearch();
 }
 function saveSelectedMode(){ lsSet(LS.mode, state.mode); }
 
@@ -2637,6 +2710,9 @@ function runSearch(q){
 let mediaRecorder=null, audioChunks=[];
 async function toggleVoice(){
   if(state.listening){ stopRecording(); return; }
+  if(!window.isSecureContext){
+    toast('MICROPHONE REQUIRES HTTPS'); return;
+  }
   if(!navigator.mediaDevices || !window.MediaRecorder){
     toast('VOICE NOT SUPPORTED IN THIS BROWSER'); return;
   }
@@ -2652,12 +2728,14 @@ async function toggleVoice(){
   }catch(e){ toast('MICROPHONE ACCESS DENIED'); }
 }
 function stopRecording(){
-  if(mediaRecorder) mediaRecorder.stop();
+  if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
 }
 function onRecordingStop(stream){
+  const recorder = mediaRecorder;
   stream.getTracks().forEach(t=>t.stop());
   state.listening=false;
-  const blob = new Blob(audioChunks,{type:mediaRecorder.mimeType||'audio/webm'});
+  mediaRecorder=null;
+  const blob = new Blob(audioChunks,{type:(recorder && recorder.mimeType)||'audio/webm'});
   showVoicePill(false, blob);
 }
 function showVoicePill(listening, blob){
@@ -2918,7 +2996,7 @@ function toggleSidebar(){
 }
 
 
-function closeAllPopovers(){ $('#mode-pop').classList.remove('open'); $('#tools-pop').classList.remove('open'); $('#mode-chip').setAttribute('aria-expanded','false'); }
+function closeAllPopovers(){ const modePop=$('#mode-pop'); const toolsPop=$('#tools-pop'); const modeChip=$('#mode-chip'); const toolsButton=$('#btn-tools'); const agentMenu=$('#agent-model-menu'); const agentButton=$('#agent-model-btn'); if(modePop) modePop.classList.remove('open'); if(toolsPop) toolsPop.classList.remove('open'); if(agentMenu) agentMenu.classList.add('hidden'); if(modeChip) modeChip.setAttribute('aria-expanded','false'); if(toolsButton) toolsButton.setAttribute('aria-expanded','false'); if(agentButton) agentButton.setAttribute('aria-expanded','false'); }
 function closeComposerSubMenus(){ closeAllPopovers(); }
 
 function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); updateComposerState(); applyAuthToUI(); }
@@ -2941,8 +3019,10 @@ function bindEvents(){
   const agentModelMenu = $('#agent-model-menu');
   if(agentModelBtn && agentModelMenu){
     agentModelBtn.addEventListener('click', (e)=>{
+      e.preventDefault();
       e.stopPropagation();
-      agentModelMenu.classList.toggle('hidden');
+      const isOpen = agentModelMenu.classList.toggle('hidden');
+      agentModelBtn.setAttribute('aria-expanded', String(!isOpen));
     });
     agentModelMenu.addEventListener('click', (e)=>{
       const item = e.target.closest('[data-select-mode]');
@@ -2956,6 +3036,7 @@ function bindEvents(){
         toast('SWITCHED TO ' + MODES[m].agentName.toUpperCase());
       }
       agentModelMenu.classList.add('hidden');
+      agentModelBtn.setAttribute('aria-expanded','false');
     });
   }
   document.addEventListener('click', (e)=>{
@@ -2964,11 +3045,13 @@ function bindEvents(){
     }
   });
 
-  
-  $('#btn-tools').addEventListener('click',toggleToolsPop);
+
+  const composerToolsButton = $('#btn-tools');
+  if(composerToolsButton) composerToolsButton.addEventListener('click',toggleToolsPop);
   $('#tools-pop').addEventListener('click',e=>{
-    const b=e.target.closest('[data-tool]'); if(!b) return;
-    handleTool(b.getAttribute('data-tool'));
+    const button = e.target.closest('[data-composer-tool]');
+    if(!button) return;
+    handleComposerTool(button.getAttribute('data-composer-tool'));
   });
 
   
@@ -2980,32 +3063,8 @@ function bindEvents(){
   $('#btn-send').addEventListener('click',()=>{ if(state.streaming) stopGenerating(); else sendMessage(); });
   window.addEventListener('keydown', e=>{ if(e.key==='Escape' && state.streaming){ e.preventDefault(); stopGenerating(); } });
   document.addEventListener('click', e=>{ if(e.target.closest('[data-cancel-stream]')){ e.preventDefault(); stopGenerating(); } });
-  $('#btn-attach').addEventListener('click',()=>$('#file-input').click());
-  const chipWebSearch = $('#chip-web-search');
-  if(chipWebSearch){
-    chipWebSearch.addEventListener('click', () => {
-      state.search.webSearch = !state.search.webSearch;
-      chipWebSearch.classList.toggle('active', state.search.webSearch);
-      toast(state.search.webSearch ? 'WEB SEARCH ACTIVATED' : 'WEB SEARCH OFF');
-    });
-  }
-  const chipDeepResearch = $('#chip-deep-research');
-  if(chipDeepResearch){
-    chipDeepResearch.addEventListener('click', () => {
-      state.search.deepResearch = !state.search.deepResearch;
-      chipDeepResearch.classList.toggle('active', state.search.deepResearch);
-      toast(state.search.deepResearch ? 'DEEP RESEARCH ACTIVATED' : 'DEEP RESEARCH OFF');
-    });
-  }
-  const chipVision = $('#chip-vision');
-  if(chipVision){
-    chipVision.addEventListener('click', () => {
-      $('#image-input').click();
-    });
-  }
   $('#file-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#image-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
-  $('#btn-voice').addEventListener('click',toggleVoice);
 
   
   ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{ e.preventDefault(); if(e.dataTransfer && e.dataTransfer.types.includes('Files')) $('#composer-inner').style.outline='1px dashed var(--brand)'; }));
@@ -3086,7 +3145,7 @@ function bindEvents(){
   
   document.addEventListener('click',e=>{
     if(!e.target.closest('#mode-chip') && !e.target.closest('#mode-pop')) {  }
-    if(!e.target.closest('#btn-tools') && !e.target.closest('#tools-pop')) $('#tools-pop').classList.remove('open');
+    if(!e.target.closest('#btn-tools') && !e.target.closest('#tools-pop')) { const pop=$('#tools-pop'); const button=$('#btn-tools'); if(pop) pop.classList.remove('open'); if(button) button.setAttribute('aria-expanded','false'); }
   });
 
   window.addEventListener('resize',()=>{ if(window.innerWidth>880) closeSidebar(); });
@@ -3327,5 +3386,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d777b0f04960c',t:'MTc5NDU2OTY2MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d777b0f04960c',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d8f690c963ef7',t:'MTc5NDU3MDY0MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d8f690c963ef7',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

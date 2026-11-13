@@ -653,6 +653,126 @@ textarea.input{ resize:vertical; min-height:90px; }
   0%,100%{ opacity:.75; } 50%{ opacity:1; }
 }
 
+
+#view{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 282px;
+  overflow:hidden;
+}
+#view.has-canvas{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(300px,.82fr) 282px;
+}
+#workspace-panel{
+  min-width:0;
+  border-left:1px solid var(--border-soft);
+  background:var(--bg-2);
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.workspace-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:13px 14px 11px;
+  border-bottom:1px solid var(--border-soft);
+}
+.workspace-title{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:var(--font-mono);
+  font-size:14px;
+  font-weight:500;
+  color:var(--text-soft);
+}
+.workspace-title svg{ width:16px; height:16px; color:var(--muted); }
+.workspace-download-all{
+  width:28px;
+  height:28px;
+  display:grid;
+  place-items:center;
+  color:var(--muted);
+  border-radius:4px;
+}
+.workspace-download-all:hover:not(:disabled){ color:var(--text); background:var(--surface-2); }
+.workspace-download-all:disabled{ cursor:not-allowed; opacity:.38; }
+.workspace-download-all svg{ width:16px; height:16px; }
+.workspace-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  padding:9px 14px;
+  border-bottom:1px solid var(--border-soft);
+  color:var(--faint);
+  font-family:var(--font-mono);
+  font-size:11px;
+}
+.workspace-meter{ height:2px; background:var(--surface-3); overflow:hidden; }
+.workspace-meter > span{ display:block; height:100%; background:var(--brand); min-width:1px; }
+.workspace-list{ flex:1; overflow-y:auto; padding:8px; }
+.workspace-section-label{
+  padding:7px 7px 5px;
+  color:var(--faint);
+  font-family:var(--font-pixel);
+  font-size:7px;
+  letter-spacing:.9px;
+}
+.workspace-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+  padding:8px 7px;
+  border-radius:5px;
+  color:var(--text-soft);
+  font-family:var(--font-mono);
+  font-size:12px;
+}
+.workspace-row:hover{ background:var(--surface); }
+.workspace-row .workspace-row-icon{ width:16px; height:16px; flex:0 0 auto; color:var(--muted); }
+.workspace-row.file .workspace-row-icon{ color:var(--cyan); }
+.workspace-row .workspace-row-icon svg{ width:16px; height:16px; }
+.workspace-row-name{ min-width:0; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.workspace-file-download{
+  width:25px;
+  height:25px;
+  display:grid;
+  place-items:center;
+  opacity:0;
+  pointer-events:none;
+  color:var(--muted);
+  border-radius:4px;
+  transition:opacity .15s,color .15s,background .15s;
+}
+.workspace-row:hover .workspace-file-download,.workspace-file-download:focus-visible{
+  opacity:1;
+  pointer-events:auto;
+}
+.workspace-file-download:hover{ color:var(--brand); background:var(--surface-3); }
+.workspace-file-download svg{ width:14px; height:14px; }
+.workspace-empty{
+  flex:1;
+  display:grid;
+  align-content:center;
+  justify-items:center;
+  gap:12px;
+  padding:24px 20px 52px;
+  text-align:center;
+}
+.workspace-empty svg{ width:132px; height:92px; color:var(--muted); opacity:.72; }
+.workspace-empty p{ max-width:210px; color:var(--faint); font-family:var(--font-mono); font-size:12px; line-height:1.5; }
+@media (max-width:1100px){
+  #view{ grid-template-columns:minmax(0,1fr) 240px; }
+  #view.has-canvas{ grid-template-columns:minmax(0,1fr) minmax(260px,.8fr) 240px; }
+}
+@media (max-width:760px){
+  #view,#view.has-canvas{ display:flex; }
+  #workspace-panel{ display:none; }
+}
+
 </style>
 </head>
 <body>
@@ -713,6 +833,7 @@ textarea.input{ resize:vertical; min-height:90px; }
         </div>
       </div>
       <div id="canvas-col" class="hidden"></div>
+      <aside id="workspace-panel" aria-label="Workspace files"></aside>
     </div>
 
     <footer id="composer">
@@ -794,7 +915,7 @@ const LS = {
   conv:'rexwork_conversations', recent:'rexwork_recent_chats', pinned:'rexwork_pinned_chats',
   archived:'rexwork_archived_chats', projects:'rexwork_projects', settings:'rexwork_settings',
   memory:'rexwork_memory', custom:'rexwork_custom_instructions', theme:'rexwork_theme',
-  mode:'rexwork_selected_mode', ui:'rexwork_ui', search:'rexwork_search_history'
+  mode:'rexwork_selected_mode', ui:'rexwork_ui', search:'rexwork_search_history', workspaceFiles:'rexwork_workspace_files', workspaceFolders:'rexwork_workspace_folders'
 };
 
 const MODES = {
@@ -829,17 +950,9 @@ let state = {
   search:{ history:[], webSearch:false, deepResearch:false },
   listening:false,
   sidebarOpen:false,
-  workspaceFiles: [
-    { id:'f_main', name:'main.py', language:'python', content:'# Python backend entrypoint\nprint("Hello from RexWork Coding Workspace!")\n', size:54, ts:Date.now() },
-    { id:'f_app', name:'index.html', language:'html', content:'\n<div id="app">RexWork Coding</div>\n', size:52, ts:Date.now() }
-  ],
-  activeFileId:'f_main',
-  terminalLogs:[
-    'RexWork Coding Workspace Terminal v1.1.0 (GPT-OSS 120B)',
-    'Ready. Commands: help, ls, cat <file>, clear, or run any bash command.',
-    ''
-  ],
-  codingTab:'both'
+  workspaceFiles:[],
+  workspaceFolders:[],
+  activeFileId:null
 };
 
 
@@ -1062,7 +1175,7 @@ function demoAnswer(mode, text){
   const t = text.replace(/[\[\]]/g,'').trim();
   const hint = '> ⚠️ **DEMO RESPONSE** — no Groq API key is configured, so this answer is simulated (not model output).';
   if(mode==='coding'){
-    return `${hint}\n\nHere is a clean starting point based on *"${t.slice(0,80)}"*:\n\n\`\`\`js\nfunction solve(input) {\n  // TODO: implement your logic here\n  return input;\n}\n\nconsole.log(solve("hello"));\n\`\`\`\n\n**Next steps:**\n- Describe the expected input and output\n- Share any error messages or failing tests\n- I will refactor this into production-quality code.`;
+    return `${hint}\n\nHere is a clean starting point based on *"${t.slice(0,80)}"*:\n\n[created: solution.js]\n\n\`\`\`js\nfunction solve(input) {\n  return input;\n}\n\nconsole.log(solve("hello"));\n\`\`\`\n\n**Next steps:**\n- Describe the expected input and output\n- Share any error messages or failing tests\n- I will refactor this into production-quality code.`;
   }
   if(mode==='research'){
     return `${hint}\n\n## Research notes: ${t.slice(0,60) || 'your topic'}\n\nA live web search was **not** performed. When the Groq Compound backend is connected, this mode returns real, source-cited answers.\n\nSimulated sources (for UI preview only):\n\n1. *Example Source One* — overview summary\n2. *Example Source Two* — key data points\n3. *Example Source Three* — further reading`;
@@ -1513,266 +1626,240 @@ function renderOnboarding(){
   });
 }
 
-function codingWorkspaceHTML(){
-  const files = state.workspaceFiles || [];
-  const activeFile = files.find(f => f.id === state.activeFileId) || files[0] || null;
-
-  return `
-    <div class="coding-workspace-box">
-      <div class="ws-head">
-        <div class="ws-title">
-          <span class="pixel" style="color:var(--brand);font-size:10px;">📂 WORKSPACE FILES</span>
-          <span class="ws-badge">${files.length} files</span>
-        </div>
-        <div class="ws-acts">
-          <label class="btn ws-btn" style="cursor:pointer; background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">
-            + Upload File
-            <input type="file" id="ws-upload-input" style="display:none;" multiple />
-          </label>
-          <button type="button" class="btn ws-btn" id="ws-btn-new" style="background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">+ New File</button>
-          <button type="button" class="btn ws-btn" id="ws-btn-clear" style="background:var(--surface-3); border:1px solid var(--border); border-radius:4px;">Clear</button>
-        </div>
-      </div>
-
-      <div class="ws-tabs">
-        ${files.map(f => `
-          <div class="ws-tab ${f.id === (activeFile ? activeFile.id : '') ? 'active' : ''}" data-ws-tab="${f.id}">
-            <span>${esc(f.name)}</span>
-            <span class="ws-tab-del" data-ws-del="${f.id}" title="Remove file">×</span>
-          </div>
-        `).join('')}
-      </div>
-
-      <div class="ws-editor-wrap">
-        <div class="ws-editor-head">
-          <span>${esc(activeFile ? activeFile.name : 'No file selected')} · ${activeFile ? activeFile.size + ' B' : '0 B'}</span>
-          <div style="display:flex; gap:6px;">
-            <button type="button" class="icon-btn" id="ws-btn-copy" title="Copy code">${COPY_SVG}</button>
-            <button type="button" class="icon-btn" id="ws-btn-dl" title="Download file">💾</button>
-          </div>
-        </div>
-        <div style="position:relative;">
-          <textarea class="ws-code-textarea" id="ws-code-editor" spellcheck="false" placeholder="Write or edit code here...">${esc(activeFile ? activeFile.content : '')}</textarea>
-        </div>
-      </div>
-
-
-    </div>
-  `;
+function workspaceIcon(name){
+  const icons = {
+    workspace:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h7l2 3h7v11H4z"/><path d="M4 8h16"/></svg>',
+    folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h7l2 3h9v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
+    file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/></svg>',
+    download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+    zip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M12 10v7"/><path d="M9.5 14.5 12 17l2.5-2.5"/></svg>'
+  };
+  return icons[name] || icons.file;
 }
-
-function bindCodingWorkspaceEvents(){
-  $$('[data-ws-tab]').forEach(tab => {
-    tab.addEventListener('click', (e) => {
-      if(e.target.closest('[data-ws-del]')) return;
-      state.activeFileId = tab.getAttribute('data-ws-tab');
-      renderAll();
+function normalizeWorkspacePath(value){
+  const source = String(value || '').trim().replace(/^['"`\s]+|['"`\s]+$/g, '').replace(/\\/g, '/').replace(/^\.\//, '').replace(/\/+/g, '/');
+  const trailingSlash = source.endsWith('/');
+  const path = source.replace(/\/+$/, '');
+  if(!path || path.split('/').some(part=>part === '..' || !part)) return '';
+  return trailingSlash ? path + '/' : path;
+}
+function workspaceFileBytes(file){
+  const content = String((file && file.content) || '');
+  if(file && file.encoding === 'dataurl' && /^data:[^,]*;base64,/.test(content)){
+    const binary = atob(content.slice(content.indexOf(',') + 1));
+    const bytes = new Uint8Array(binary.length);
+    for(let i=0;i<binary.length;i+=1) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  }
+  return new TextEncoder().encode(content);
+}
+function workspaceFolderPaths(){
+  const paths = new Set((state.workspaceFolders || []).map(normalizeWorkspacePath).filter(Boolean));
+  (state.workspaceFiles || []).forEach(file=>{
+    const bits = normalizeWorkspacePath(file.name).split('/');
+    bits.pop();
+    let folder = '';
+    bits.forEach(bit=>{
+      folder = folder ? folder + '/' + bit : bit;
+      if(folder) paths.add(folder);
     });
   });
-
-  $$('[data-ws-del]').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const fid = btn.getAttribute('data-ws-del');
-      state.workspaceFiles = state.workspaceFiles.filter(f => f.id !== fid);
-      if(state.activeFileId === fid){
-        state.activeFileId = state.workspaceFiles[0]?.id || null;
-      }
-      lsSet('rexwork_workspace_files', state.workspaceFiles);
-      renderAll();
-      toast('FILE REMOVED');
-    });
+  return Array.from(paths).sort((a,b)=>a.localeCompare(b));
+}
+function saveWorkspace(){
+  lsSet(LS.workspaceFiles, state.workspaceFiles || []);
+  lsSet(LS.workspaceFolders, workspaceFolderPaths());
+}
+function addWorkspaceFolder(path){
+  const clean = normalizeWorkspacePath(path).replace(/\/$/, '');
+  if(!clean) return false;
+  const folders = new Set(workspaceFolderPaths());
+  const before = folders.size;
+  const parts = clean.split('/');
+  let current = '';
+  parts.forEach(part=>{
+    current = current ? current + '/' + part : part;
+    folders.add(current);
   });
-
-  const editor = $('#ws-code-editor');
-  if(editor){
-    editor.addEventListener('input', () => {
-      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
-      if(active){
-        active.content = editor.value;
-        active.size = new Blob([active.content]).size;
-        lsSet('rexwork_workspace_files', state.workspaceFiles);
-      }
+  state.workspaceFolders = Array.from(folders);
+  if(folders.size !== before) saveWorkspace();
+  return folders.size !== before;
+}
+function workspaceLanguage(path, fallback){
+  if(fallback) return String(fallback).toLowerCase();
+  const ext = normalizeWorkspacePath(path).split('.').pop().toLowerCase();
+  return ext || 'text';
+}
+function upsertWorkspaceFile(entry){
+  const name = normalizeWorkspacePath(entry && entry.name);
+  if(!name) return null;
+  const files = state.workspaceFiles || [];
+  const index = files.findIndex(file=>normalizeWorkspacePath(file.name) === name);
+  const current = index >= 0 ? files[index] : null;
+  const next = Object.assign({}, current || {}, entry || {}, {
+    id: (current && current.id) || (entry && entry.id) || uid(),
+    name,
+    language: workspaceLanguage(name, entry && entry.language),
+    content: String((entry && entry.content) == null ? '' : entry.content),
+    encoding: (entry && entry.encoding) || (current && current.encoding) || 'text',
+    mimeType: (entry && entry.mimeType) || (current && current.mimeType) || 'text/plain',
+    ts: Date.now()
+  });
+  next.size = workspaceFileBytes(next).byteLength;
+  if(index >= 0) files[index] = next;
+  else files.push(next);
+  state.workspaceFiles = files;
+  state.activeFileId = next.id;
+  const parent = name.split('/').slice(0,-1).join('/');
+  if(parent) addWorkspaceFolder(parent);
+  saveWorkspace();
+  return next;
+}
+function saveUploadedFileToWorkspace(file){
+  if(!file) return;
+  const reader = new FileReader();
+  const binary = !(file.type || '').startsWith('text/') && !/\.(?:txt|md|js|ts|tsx|jsx|html|css|json|py|java|c|cpp|h|hpp|go|rs|php|rb|sh|sql|csv|xml|yaml|yml)$/i.test(file.name || '');
+  reader.onload = event=>{
+    const item = upsertWorkspaceFile({
+      name:file.name,
+      content:event.target.result,
+      encoding:binary ? 'dataurl' : 'text',
+      mimeType:file.type || 'application/octet-stream'
     });
-  }
-
-  const fileInput = $('#ws-upload-input');
-  if(fileInput){
-    fileInput.addEventListener('change', (e) => {
-      const files = Array.from(e.target.files || []);
-      if(!files.length) return;
-      files.forEach(f => {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const content = ev.target.result;
-          const ext = f.name.split('.').pop();
-          const newF = {
-            id: 'f_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-            name: f.name,
-            language: ext,
-            content: content,
-            size: f.size,
-            ts: Date.now()
-          };
-          state.workspaceFiles.push(newF);
-          state.activeFileId = newF.id;
-          lsSet('rexwork_workspace_files', state.workspaceFiles);
-          renderAll();
-          toast('UPLOADED: ' + f.name);
-        };
-        reader.readAsText(f);
-      });
+    if(item){
+      renderWorkspacePanel();
+      toast('SAVED TO WORKSPACE: ' + item.name.toUpperCase());
+    }
+  };
+  if(binary) reader.readAsDataURL(file);
+  else reader.readAsText(file);
+}
+function captureAssistantWorkspaceArtifacts(content){
+  const source = String(content || '');
+  const directives = Array.from(source.matchAll(/\[created:\s*([^\]]+)\]/gi)).map(match=>normalizeWorkspacePath(match[1])).filter(Boolean);
+  if(!directives.length) return [];
+  const blocks = Array.from(source.matchAll(/```([\w+-]*)\s*\n([\s\S]*?)```/g)).map(match=>({ language:match[1] || '', content:match[2] }));
+  const saved = [];
+  directives.forEach((path, index)=>{
+    const block = blocks[index] || blocks[0] || null;
+    const isFolder = /\/$/.test(path) || (!path.split('/').pop().includes('.') && !block);
+    if(isFolder){
+      if(addWorkspaceFolder(path)) saved.push(path.replace(/\/$/, '') + '/');
+      return;
+    }
+    const item = upsertWorkspaceFile({
+      name:path,
+      language:block && block.language,
+      content:block ? block.content : '',
+      mimeType:'text/plain'
     });
+    if(item) saved.push(item.name);
+  });
+  return saved;
+}
+function zipCrc32(bytes){
+  let crc = -1;
+  for(let i=0;i<bytes.length;i+=1){
+    crc ^= bytes[i];
+    for(let bit=0;bit<8;bit+=1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
   }
-
-  const btnNew = $('#ws-btn-new');
-  if(btnNew){
-    btnNew.addEventListener('click', () => {
-      const name = prompt('Enter new filename (e.g. script.py, app.js):', 'new_file.py');
-      if(!name || !name.trim()) return;
-      const cleanName = name.trim();
-      const newF = {
-        id: 'f_' + Date.now().toString(36),
-        name: cleanName,
-        language: cleanName.split('.').pop(),
-        content: '# ' + cleanName + '\n',
-        size: cleanName.length + 3,
-        ts: Date.now()
-      };
-      state.workspaceFiles.push(newF);
-      state.activeFileId = newF.id;
-      lsSet('rexwork_workspace_files', state.workspaceFiles);
-      renderAll();
-      toast('CREATED: ' + cleanName);
-    });
-  }
-
-  const btnClear = $('#ws-btn-clear');
-  if(btnClear){
-    btnClear.addEventListener('click', () => {
-      if(confirm('Clear all workspace files?')){
-        state.workspaceFiles = [];
-        state.activeFileId = null;
-        lsSet('rexwork_workspace_files', []);
-        renderAll();
-        toast('WORKSPACE CLEARED');
-      }
-    });
-  }
-
-  const btnCopy = $('#ws-btn-copy');
-  if(btnCopy){
-    btnCopy.addEventListener('click', () => {
-      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
-      if(active){
-        navigator.clipboard.writeText(active.content);
-        toast('CODE COPIED');
-      }
-    });
-  }
-
-  const btnDl = $('#ws-btn-dl');
-  if(btnDl){
-    btnDl.addEventListener('click', () => {
-      const active = state.workspaceFiles.find(f => f.id === state.activeFileId);
-      if(active){
-        const blob = new Blob([active.content], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = active.name;
-        a.click();
-        URL.revokeObjectURL(a.href);
-        toast('DOWNLOADING ' + active.name);
-      }
-    });
-  }
-
-  const termInput = $('#ws-term-in');
-  const termClear = $('#ws-term-clear-btn');
-  if(termClear){
-    termClear.addEventListener('click', () => {
-      state.terminalLogs = ['Terminal cleared.'];
-      renderAll();
-    });
-  }
-  if(termInput){
-    termInput.addEventListener('keydown', async (e) => {
-      if(e.key === 'Enter'){
-        const rawCmd = (termInput.value || '').trim();
-        if(!rawCmd) return;
-        termInput.value = '';
-        state.terminalLogs.push('rexwork:~$ ' + rawCmd);
-
-        if(rawCmd === 'clear'){
-          state.terminalLogs = ['Terminal cleared.'];
-          renderAll();
-          return;
-        }
-        if(rawCmd === 'help'){
-          state.terminalLogs.push(
-            'Available commands:',
-            '  ls               - List workspace files',
-            '  cat <filename>   - Display file content',
-            '  clear            - Clear terminal',
-            '  <bash command>   - Executed via backend /api/bash'
-          );
-          renderAll();
-          return;
-        }
-        if(rawCmd === 'ls'){
-          const flist = state.workspaceFiles.map(f => f.name + ' (' + f.size + ' B)').join('  ');
-          state.terminalLogs.push(flist || '(No files in workspace)');
-          renderAll();
-          return;
-        }
-        if(rawCmd.startsWith('cat ')){
-          const fname = rawCmd.slice(4).trim();
-          const target = state.workspaceFiles.find(f => f.name.toLowerCase() === fname.toLowerCase());
-          if(target){
-            state.terminalLogs.push(target.content);
-          } else {
-            state.terminalLogs.push('cat: ' + fname + ': No such file');
-          }
-          renderAll();
-          return;
-        }
-
-        try {
-          const res = await fetch(API_BASE + '/api/bash', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ command: rawCmd })
-          });
-          if(res.ok){
-            const j = await res.json();
-            if(j.stdout) state.terminalLogs.push(j.stdout.trim());
-            if(j.stderr) state.terminalLogs.push('[stderr] ' + j.stderr.trim());
-            if(!j.stdout && !j.stderr) state.terminalLogs.push('[Done (code ' + (j.returncode ?? 0) + ')]');
-          } else {
-            state.terminalLogs.push('[local bash]: ' + rawCmd + ' (exit 0)');
-          }
-        } catch(err){
-          state.terminalLogs.push('[local bash]: ' + rawCmd + ' (exit 0)');
-        }
-        renderAll();
-        const logBox = $('#ws-term-log');
-        if(logBox) logBox.scrollTop = logBox.scrollHeight;
-      }
-    });
-  }
+  return (crc ^ -1) >>> 0;
+}
+function zipWrite16(view, offset, value){ view.setUint16(offset, value & 0xffff, true); }
+function zipWrite32(view, offset, value){ view.setUint32(offset, value >>> 0, true); }
+function zipConcat(parts){
+  const length = parts.reduce((total, part)=>total + part.length, 0);
+  const output = new Uint8Array(length);
+  let offset = 0;
+  parts.forEach(part=>{ output.set(part, offset); offset += part.length; });
+  return output;
+}
+function zipDateParts(timestamp){
+  const date = new Date(timestamp || Date.now());
+  const year = Math.max(1980, date.getFullYear());
+  return {
+    time:(date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date:((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  };
+}
+function workspaceZipBlob(){
+  const encoder = new TextEncoder();
+  const folderEntries = workspaceFolderPaths().map(name=>({ name:name.replace(/\/$/, '') + '/', data:new Uint8Array(), ts:Date.now() }));
+  const fileEntries = (state.workspaceFiles || []).map(file=>({ name:normalizeWorkspacePath(file.name), data:workspaceFileBytes(file), ts:file.ts || Date.now() })).filter(entry=>entry.name);
+  const entries = folderEntries.concat(fileEntries);
+  const locals = [];
+  const centrals = [];
+  let offset = 0;
+  entries.forEach(entry=>{
+    const name = encoder.encode(entry.name);
+    const data = entry.data;
+    const crc = zipCrc32(data);
+    const date = zipDateParts(entry.ts);
+    const local = new Uint8Array(30 + name.length + data.length);
+    const localView = new DataView(local.buffer);
+    zipWrite32(localView,0,0x04034b50); zipWrite16(localView,4,20); zipWrite16(localView,6,0); zipWrite16(localView,8,0);
+    zipWrite16(localView,10,date.time); zipWrite16(localView,12,date.date); zipWrite32(localView,14,crc);
+    zipWrite32(localView,18,data.length); zipWrite32(localView,22,data.length); zipWrite16(localView,26,name.length); zipWrite16(localView,28,0);
+    local.set(name,30); local.set(data,30 + name.length);
+    locals.push(local);
+    const central = new Uint8Array(46 + name.length);
+    const centralView = new DataView(central.buffer);
+    zipWrite32(centralView,0,0x02014b50); zipWrite16(centralView,4,20); zipWrite16(centralView,6,20); zipWrite16(centralView,8,0); zipWrite16(centralView,10,0);
+    zipWrite16(centralView,12,date.time); zipWrite16(centralView,14,date.date); zipWrite32(centralView,16,crc);
+    zipWrite32(centralView,20,data.length); zipWrite32(centralView,24,data.length); zipWrite16(centralView,28,name.length); zipWrite16(centralView,30,0); zipWrite16(centralView,32,0);
+    zipWrite16(centralView,34,0); zipWrite16(centralView,36,0); zipWrite32(centralView,38,entry.name.endsWith('/') ? 16 : 0); zipWrite32(centralView,42,offset);
+    central.set(name,46); centrals.push(central);
+    offset += local.length;
+  });
+  const directory = zipConcat(centrals);
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  zipWrite32(endView,0,0x06054b50); zipWrite16(endView,4,0); zipWrite16(endView,6,0); zipWrite16(endView,8,entries.length); zipWrite16(endView,10,entries.length);
+  zipWrite32(endView,12,directory.length); zipWrite32(endView,16,offset); zipWrite16(endView,20,0);
+  return new Blob([zipConcat(locals.concat([directory,end]))], { type:'application/zip' });
+}
+function triggerWorkspaceDownload(blob, name){
+  const anchor = document.createElement('a');
+  const url = URL.createObjectURL(blob);
+  anchor.href = url;
+  anchor.download = name;
+  anchor.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 250);
+}
+function downloadWorkspaceFile(id){
+  const file = (state.workspaceFiles || []).find(item=>item.id === id);
+  if(!file) return;
+  triggerWorkspaceDownload(new Blob([workspaceFileBytes(file)], { type:file.mimeType || 'application/octet-stream' }), file.name.split('/').pop() || 'download');
+  toast('DOWNLOADING ' + file.name.toUpperCase());
+}
+function downloadWorkspaceZip(){
+  if(!(state.workspaceFiles || []).length) return;
+  triggerWorkspaceDownload(workspaceZipBlob(), 'rexwork-workspace.zip');
+  toast('DOWNLOADING WORKSPACE ZIP');
+}
+function renderWorkspacePanel(){
+  const panel = $('#workspace-panel');
+  if(!panel) return;
+  const files = (state.workspaceFiles || []).slice().sort((a,b)=>normalizeWorkspacePath(a.name).localeCompare(normalizeWorkspacePath(b.name)));
+  const folders = workspaceFolderPaths();
+  const used = files.reduce((total,file)=>total + workspaceFileBytes(file).byteLength,0);
+  const limit = 128 * 1024 * 1024;
+  const percent = Math.min(100, Math.max(0, (used / limit) * 100));
+  const folderRows = folders.map(folder=>`<div class="workspace-row folder" title="${esc(folder)}"><span class="workspace-row-icon">${workspaceIcon('folder')}</span><span class="workspace-row-name">${esc(folder)}</span></div>`).join('');
+  const fileRows = files.map(file=>`<div class="workspace-row file" title="${esc(file.name)}"><span class="workspace-row-icon">${workspaceIcon('file')}</span><span class="workspace-row-name">${esc(file.name)}</span><button type="button" class="workspace-file-download" data-ws-download="${esc(file.id)}" aria-label="Download ${esc(file.name)}" title="Download ${esc(file.name)}">${workspaceIcon('download')}</button></div>`).join('');
+  const empty = !folders.length && !files.length;
+  panel.innerHTML = `<div class="workspace-head"><div class="workspace-title">${workspaceIcon('workspace')}<span>Workspace</span></div><button type="button" id="ws-download-all" class="workspace-download-all" ${files.length ? '' : 'disabled'} aria-label="Download workspace as ZIP" title="Download workspace ZIP">${workspaceIcon('zip')}</button></div><div class="workspace-meta"><span>${fmtBytes(used)} / 128.0 MB</span><span>${files.length}/1.0K files</span></div><div class="workspace-meter"><span style="width:${percent}%"></span></div>${empty ? `<div class="workspace-empty"><svg viewBox="0 0 160 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="31" width="56" height="42" rx="4"/><path d="M16 42h56M31 20h26l8 11H23zM93 28h42l9 13v31H93z"/><path d="M104 55h28M104 65h17"/><path d="m48 83 8-10 8 10M110 84v-9"/></svg><p>All files that are created or uploaded in this session will be saved here.</p></div>` : `<div class="workspace-list">${folders.length ? `<div class="workspace-section-label">FOLDERS</div>${folderRows}` : ''}<div class="workspace-section-label">FILES</div>${fileRows}</div>`}`;
 }
 
 function renderChat(){
   const inner = $('#chat-inner');
   const c = currentConversation();
-  const wsHTML = state.mode === 'coding' ? codingWorkspaceHTML() : '';
+  const wsHTML = '';
   if(!c){
     inner.innerHTML = wsHTML + welcomeHTML();
-    if(state.mode === 'coding') bindCodingWorkspaceEvents();
     return;
   }
   inner.innerHTML = wsHTML + c.messages.map((m,i)=>messageHTML(m,i,c)).join('');
-  if(state.mode === 'coding') bindCodingWorkspaceEvents();
   bindMessageActions();
   scrollBottom();
 }
@@ -1962,6 +2049,9 @@ async function sendMessage(){
   } else if(hasAttach && state.attachments.some(a=>!a.readable)){
     contentForModel = text ? text : `[File attached: ${state.attachments.map(a=>a.name).join(', ')}]`;
   }
+  if(state.mode==='coding'){
+    contentForModel += '\n\nWhen you create a file, put [created: relative/path.ext] immediately before its fenced code block. When you create a folder, put [created: relative/folder/].';
+  }
 
   $('#composer-input').value='';
   autoGrow();
@@ -2022,9 +2112,11 @@ async function sendMessage(){
   if(res.demo) asst.demo = true;
 
   if(!asst.content) asst.content = '*(empty response)*';
+  const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
   c.updatedAt = now();
   saveConversations();
   renderAll();
+  if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
   maybeAutoRead(asst.content);
 }
 
@@ -2109,6 +2201,7 @@ function renderAttachments(){
 
 function addFiles(files){
   Array.from(files).forEach(async f=>{
+    saveUploadedFileToWorkspace(f);
     const ext = ('.'+f.name.split('.').pop()).toLowerCase();
     const isImg = f.type && f.type.startsWith('image/');
     const a = { kind: isImg?'image':'file', name:f.name.toUpperCase(), ext, size:f.size, readable:false, text:null, dataUrl:null };
@@ -2943,7 +3036,9 @@ async function regenerateFrom(){
   if(res.error) asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
   if(res.demo) asst.demo=true;
   if(!asst.content) asst.content='*(empty response)*';
+  const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
   c.updatedAt=now(); saveConversations(); renderAll();
+  if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
 }
 function editUserMessage(i,m){
   openModal(`<div class="modal-head"><span class="mh">EDIT MESSAGE</span><button class="icon-btn" data-close>${X_SVG}</button></div>
@@ -2999,7 +3094,7 @@ function toggleSidebar(){
 function closeAllPopovers(){ const modePop=$('#mode-pop'); const toolsPop=$('#tools-pop'); const modeChip=$('#mode-chip'); const toolsButton=$('#btn-tools'); const agentMenu=$('#agent-model-menu'); const agentButton=$('#agent-model-btn'); if(modePop) modePop.classList.remove('open'); if(toolsPop) toolsPop.classList.remove('open'); if(agentMenu) agentMenu.classList.add('hidden'); if(modeChip) modeChip.setAttribute('aria-expanded','false'); if(toolsButton) toolsButton.setAttribute('aria-expanded','false'); if(agentButton) agentButton.setAttribute('aria-expanded','false'); }
 function closeComposerSubMenus(){ closeAllPopovers(); }
 
-function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); updateComposerState(); applyAuthToUI(); }
+function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); renderWorkspacePanel(); updateComposerState(); applyAuthToUI(); }
 
 function bindEvents(){
   
@@ -3065,6 +3160,11 @@ function bindEvents(){
   document.addEventListener('click', e=>{ if(e.target.closest('[data-cancel-stream]')){ e.preventDefault(); stopGenerating(); } });
   $('#file-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#image-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
+  $('#workspace-panel').addEventListener('click',e=>{
+    const fileButton=e.target.closest('[data-ws-download]');
+    if(fileButton){ downloadWorkspaceFile(fileButton.getAttribute('data-ws-download')); return; }
+    if(e.target.closest('#ws-download-all')) downloadWorkspaceZip();
+  });
 
   
   ['dragenter','dragover'].forEach(ev=>document.addEventListener(ev,e=>{ e.preventDefault(); if(e.dataTransfer && e.dataTransfer.types.includes('Files')) $('#composer-inner').style.outline='1px dashed var(--brand)'; }));
@@ -3331,11 +3431,13 @@ async function boot(){
     state.view = 'onboarding';
   }
 
-  const savedFiles = lsGet('rexwork_workspace_files', null);
-  if(Array.isArray(savedFiles) && savedFiles.length > 0){
-    state.workspaceFiles = savedFiles;
-    state.activeFileId = savedFiles[0].id;
+  const savedFiles = lsGet(LS.workspaceFiles, null);
+  if(Array.isArray(savedFiles)){
+    state.workspaceFiles = savedFiles.filter(file=>file && !['f_main','f_app'].includes(file.id));
+    state.activeFileId = state.workspaceFiles[0] ? state.workspaceFiles[0].id : null;
   }
+  const savedFolders = lsGet(LS.workspaceFolders, null);
+  if(Array.isArray(savedFolders)) state.workspaceFolders = savedFolders.map(normalizeWorkspacePath).filter(Boolean);
 
   if(state.mode && MODES[state.mode]){} else state.mode='chat';
   if(lsGet('rexwork_sidebar_collapsed', false)){
@@ -3386,5 +3488,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d8f690c963ef7',t:'MTc5NDU3MDY0MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d8f690c963ef7',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59da9fbebd04abd',t:'MTc5NDU3MTcyOQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59da9fbebd04abd',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

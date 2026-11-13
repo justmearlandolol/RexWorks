@@ -33,6 +33,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def vercel_routing_middleware(request: Request, call_next):
+    orig_path = request.headers.get("x-matched-path") or request.headers.get("x-forwarded-uri")
+    if orig_path:
+        clean = orig_path.split("?")[0]
+        if request.scope.get("path") in ["/api/index", "/api/index.py", "/index", "/index.py"]:
+            request.scope["path"] = clean
+    return await call_next(request)
+
 # ============================================================
 # CONFIG
 # ============================================================
@@ -522,19 +532,21 @@ INDEX_FILE = os.path.join(FRONTEND_DIR, "index.html")
 
 
 @app.get("/")
+@app.get("/api/index")
+@app.get("/index")
 async def root():
     if os.path.exists(INDEX_FILE):
         return FileResponse(INDEX_FILE)
 
-    # Deployment backend-only (mis. Vercel serverless):
-    # frontend tidak ikut ter-bundle, jadi balikin status JSON saja.
     return {
         "app": "RexWork",
-        "status": "running",
+        "status": "online",
         "version": "1.1.0",
         "docs": "/docs",
         "health": "/api/health",
-        "note": "Frontend is deployed separately."
+        "keys_loaded": keys.count(),
+        "vision_available": vision_available(),
+        "note": "RexWork Backend is online and ready."
     }
 
 
@@ -564,6 +576,9 @@ async def status():
 
 
 @app.get("/api/health")
+@app.get("/health")
+@app.get("/api/index/api/health")
+@app.get("/api/index/health")
 async def health():
     return {
         "status": "ok",

@@ -22,21 +22,13 @@ app = FastAPI(
     version="1.1.0"
 )
 
-# Untuk backend yang di-host terpisah dari frontend.
-# Isi CORS_ORIGINS di environment deployment jika ingin
-# membatasi origin yang boleh mengakses API.
-cors_origins = [
-    origin.strip()
-    for origin in os.getenv("CORS_ORIGINS", "*").split(",")
-    if origin.strip()
-]
-
+# CORS: izinkan akses dari frontend manapun (Vercel, localhost, dll)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=cors_origins,
+    allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ============================================================
@@ -560,11 +552,16 @@ async def root():
     if os.path.exists(INDEX_FILE):
         return FileResponse(INDEX_FILE)
 
-    return error_response(
-        404,
-        "FRONTEND_NOT_FOUND",
-        "Frontend/index.html tidak ditemukan."
-    )
+    # Deployment backend-only (mis. Vercel serverless):
+    # frontend tidak ikut ter-bundle, jadi balikin status JSON saja.
+    return {
+        "app": "RexWork",
+        "status": "running",
+        "version": "1.1.0",
+        "docs": "/docs",
+        "health": "/api/health",
+        "note": "Frontend is deployed separately."
+    }
 
 
 @app.get("/Main.html")

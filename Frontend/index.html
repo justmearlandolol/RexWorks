@@ -4,6 +4,9 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="rexwork-api" content="https://rexworks-backend.vercel.app/"/>
+<!-- Fill in with the same value as the APP_TOKEN env var on the backend.
+     Leave empty only if APP_TOKEN is unset (origin allow-list is used then). -->
+<meta name="rexwork-token" content=""/>
 <meta name="color-scheme" content="dark light" />
 <meta name="supabase-url" content="https://fdlklzveockeibcmijmz.supabase.co" />
 <meta name="supabase-anon-key" content="sb_publishable_fhqAyClsPwkXDrqQVD2H5g_L1zyGihq" />
@@ -1080,10 +1083,11 @@ async function probeHealth(base){
 
 async function checkBackend(){
   
+  // Same-origin first (the backend serves this file), then the configured
+  // deployment. No localhost fallback: the browser is not the server.
   const candidates = [
-    META_API_BASE,
     '',
-    'http://127.0.0.1:8000'
+    META_API_BASE
   ].filter((v, idx, arr) => arr.indexOf(v) === idx);
 
   for (const cand of candidates) {
@@ -1119,7 +1123,11 @@ async function checkBackend(){
   });
 })();
 function isDemo(){
-  return !state.backend.reachable || state.backend.keysLoaded===0;
+  // Demo answers are only used when the backend is genuinely reachable but
+  // has no API key configured. A failed health probe is NOT a demo signal —
+  // the real request is attempted so the user sees an honest error instead
+  // of a simulated reply.
+  return state.backend.reachable === true && state.backend.keysLoaded === 0;
 }
 
 async function streamChat(mode, messages, onDelta, signal){
@@ -1140,6 +1148,20 @@ async function streamChat(mode, messages, onDelta, signal){
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf='';
+    let received=false;
+    let streamError=null;
+    const handleFrame = (raw)=>{
+      const data = raw.trim();
+      if(!data || data==='[DONE]') return;
+      let j=null;
+      try{ j = JSON.parse(data); }catch(e){ return; }
+      if(j.error){
+        if(j.error==='NO_KEYS'){ state.backend.keysLoaded=0; }
+        streamError = { error:j.error, message:j.message };
+        return;
+      }
+      if(typeof j.delta==='string' && j.delta){ received = true; onDelta(j.delta); }
+    };
     while(true){
       const {done,value} = await reader.read();
       if(done) break;
@@ -1147,20 +1169,13 @@ async function streamChat(mode, messages, onDelta, signal){
       let idx;
       while((idx=buf.indexOf('\n\n'))>=0){
         const line = buf.slice(0,idx); buf=buf.slice(idx+2);
-        for(const ln of line.split('\n')){
-          if(!ln.startsWith('data:')) continue;
-          const data = ln.slice(5).trim();
-          if(data==='[DONE]') continue;
-          try{
-            const j = JSON.parse(data);
-            if(j.error){
-              if(j.error==='NO_KEYS'){ state.backend.keysLoaded=0; }
-              return { ok:false, error:j.error, message:j.message };
-            }
-            if(j.delta) onDelta(j.delta);
-          }catch(e){}
-        }
+        for(const ln of line.split('\n')) handleFrame(ln.slice(5));
       }
+    }
+    if(buf) for(const ln of buf.split('\n')) handleFrame(ln.startsWith('data:')?ln.slice(5):ln);
+    if(streamError) return { ok:false, ...streamError };
+    if(!received){
+      return { ok:false, error:'EMPTY_RESPONSE', message:'The model finished without sending any text. Please try again.' };
     }
     return { ok:true };
   }catch(e){
@@ -2128,18 +2143,19 @@ async function sendMessage(){
     if(res.error==='VISION_MODEL_UNAVAILABLE'){
       asst.content = '**VISION MODEL UNAVAILABLE**\n\n'+(res.message||'No Groq vision-capable model is configured on this server.');
     } else if(res.error==='NO_KEYS'){
-      
-      asst.content = asst.content || demoAnswer(state.mode, text);
-      asst.demo = true;
+      state.backend.keysLoaded = 0;
+      asst.content = '**NO MODEL KEY CONFIGURED**\n\n'+(res.message||'This server has no Groq API key set, so it cannot answer yet.');
+    } else if(res.error==='EMPTY_RESPONSE'){
+      asst.content = '**SOMETHING WENT WRONG.**\n\n'+(res.message||'The model returned no text.')+'\n\n[ TRY AGAIN ]';
     } else if(res.error==='NETWORK'){
       asst.content = '**CONNECTION LOST.**\n\n[ TRY AGAIN ]';
     } else {
-      asst.content = asst.content || '**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+      asst.content = '**SOMETHING WENT WRONG.**\n\n'+(res.message||'')+'\n\n[ TRY AGAIN ]';
     }
   }
   if(res.demo) asst.demo = true;
 
-  if(!asst.content) asst.content = '*(empty response)*';
+  if(!asst.content) asst.content = '**SOMETHING WENT WRONG.**\n\nThe model returned no text.\n\n[ TRY AGAIN ]';
   const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
   c.updatedAt = now();
   saveConversations();
@@ -3061,9 +3077,13 @@ async function regenerateFrom(){
     toast('MESSAGE CANCELLED');
     return;
   }
-  if(res.error) asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+  if(res.error){
+    asst.content = (res.error==='NETWORK')
+      ? '**CONNECTION LOST.**\n\n[ TRY AGAIN ]'
+      : '**SOMETHING WENT WRONG.**\n\n'+(res.message||'The model returned no text.')+'\n\n[ TRY AGAIN ]';
+  }
   if(res.demo) asst.demo=true;
-  if(!asst.content) asst.content='*(empty response)*';
+  if(!asst.content) asst.content='**SOMETHING WENT WRONG.**\n\nThe model returned no text.\n\n[ TRY AGAIN ]';
   const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
   c.updatedAt=now(); saveConversations(); renderAll();
   if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
@@ -3363,10 +3383,10 @@ function mergeProfileIntoAuth(profile){
 }
 async function hydrateAuthFromSupabase(){
   const client = getSupabaseClient();
-  if(!client) return authProfile();
+  if(!client) return null;
   try{
     const { data, error } = await client.auth.getSession();
-    if(error || !data || !data.session) return authProfile();
+    if(error || !data || !data.session || !data.session.user) return null;
     const session = data.session;
     const user = session.user;
     const metadata = user.user_metadata || {};
@@ -3385,7 +3405,7 @@ async function hydrateAuthFromSupabase(){
     localStorage.setItem('rexwork_auth', JSON.stringify(merged));
     return merged;
   }catch(error){
-    return authProfile();
+    return null;
   }
 }
 async function syncProfileFromSupabase(){
@@ -3440,7 +3460,13 @@ async function persistUserProfile(auth, avatarFile){
 
 async function boot(){
   const auth = await hydrateAuthFromSupabase();
-  if(!auth || (!auth.provider && !auth.id && !auth.userId)){
+
+  // Only a verified Supabase session may open the workspace. Anything else
+  // (a stale localStorage blob, a demo login, a forged profile) is wiped and
+  // the user is sent back to the login page.
+  if(!auth || (!auth.id && !auth.userId)){
+    localStorage.removeItem('rexwork_auth');
+    localStorage.removeItem('rexwork_profile');
     window.location.replace('Main.html');
     return;
   }
@@ -3448,7 +3474,10 @@ async function boot(){
   loadAll();
 
   const savedProf = lsGet('rexwork_profile', null);
+  // Profile data may enrich the session, but identity always comes from the
+  // verified Supabase session above.
   state.auth = Object.assign({}, savedProf || {}, state.auth);
+  delete state.auth.demo;
   await syncProfileFromSupabase();
   const wasOnboarded = lsGet('rexwork_onboarded', false) || Boolean(state.auth && state.auth.onboarded) || Boolean(savedProf && savedProf.onboarded);
 

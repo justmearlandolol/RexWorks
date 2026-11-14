@@ -252,21 +252,7 @@ h1 .cur{
   align-items:center;
   justify-content:center;
   gap:12px;
-}
-.bypass-link{
-  background:none;
-  border:none;
-  color:var(--faint);
-  font-family:var(--font-mono);
-  font-size:11.5px;
-  cursor:pointer;
-  text-decoration:none;
-}
-.bypass-link:hover{
-  color:var(--muted);
-  text-decoration:underline;
-}
-.foot-dot{
+}.foot-dot{
   width:3px; height:3px; border-radius:50%; background:var(--faint);
 }
 </style>
@@ -308,8 +294,6 @@ h1 .cur{
   <div class="status-msg" id="status-msg"></div>
 
   <div class="foot-actions">
-    <button type="button" class="bypass-link" id="btn-bypass">Offline Dev Bypass</button>
-    <span class="foot-dot"></span>
     <span>RexWork v1.1</span>
   </div>
 </div>
@@ -349,7 +333,6 @@ const btnToggle = document.getElementById('btn-toggle');
 const titleText = document.getElementById('title-text');
 const switchPrompt = document.getElementById('switch-prompt');
 const statusMsg = document.getElementById('status-msg');
-const btnBypass = document.getElementById('btn-bypass');
 
 let isSignUp = false;
 
@@ -403,11 +386,24 @@ async function handleAuthFlow(){
 
   try {
     const cached = JSON.parse(localStorage.getItem(AUTH_KEY) || 'null');
-    if (cached && cached.provider) {
+
+    // Never trust a locally forged/demo session: a real session needs an id
+    // or userId plus provider metadata from Supabase.
+    const looksReal = cached
+      && cached.provider
+      && (cached.id || cached.userId)
+      && !cached.demo;
+
+    if (looksReal) {
       setStatus('SESSION FOUND — OPENING REXWORK…', 'var(--green)');
       setTimeout(() => location.replace('index.html'), 300);
+      return;
     }
-  } catch (e) {}
+
+    if (cached) localStorage.removeItem(AUTH_KEY);
+  } catch (e) {
+    localStorage.removeItem(AUTH_KEY);
+  }
 }
 
 function processUserSession(u){
@@ -482,15 +478,8 @@ btnContinue.addEventListener('click', async () => {
     } catch (err) {}
   }
 
-  setTimeout(() => {
-    saveAuthAndEnter({
-      provider: 'email',
-      demo: true,
-      id: 'email-user',
-      name: email.split('@')[0],
-      email: email
-    });
-  }, 500);
+  btnContinue.disabled = false;
+  setStatus('LOGIN SERVICE UNAVAILABLE — TRY AGAIN LATER', 'var(--red)');
 });
 
 btnGoogle.addEventListener('click', async () => {
@@ -527,20 +516,6 @@ btnGoogle.addEventListener('click', async () => {
   }
 });
 
-btnBypass.addEventListener('click', () => {
-  const enteredEmail = (emailInput.value || '').trim();
-  const userName = enteredEmail ? enteredEmail.split('@')[0] : 'justmearlandolol';
-  setStatus('DEVELOPER BYPASS ACTIVATED…', 'var(--green)');
-  setTimeout(() => {
-    saveAuthAndEnter({
-      provider: 'google',
-      demo: true,
-      id: 'demo-local-user',
-      name: userName,
-      email: enteredEmail || `${userName}@local`
-    });
-  }, 350);
-});
 </script>
 <script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d4a938825d06f',t:'MTc5NDU2NzgyMQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d4a938825d06f',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

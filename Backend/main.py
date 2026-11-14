@@ -2,8 +2,10 @@ import os
 import re
 import time
 import json
+import logging
 import secrets
-from typing import Optional, List, Dict, Any
+from contextlib import aclosing
+from typing import Optional, List, Dict, Any, NamedTuple, Tuple
 
 import httpx
 try:
@@ -15,14 +17,13 @@ from fastapi import FastAPI, Request, UploadFile, File
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# ============================================================
-# BOOTSTRAP
-# ============================================================
 
 app = FastAPI(
     title="RexWork",
     version="1.1.0"
 )
+
+logger = logging.getLogger("rexwork")
 
 APP_TOKEN = (os.getenv("APP_TOKEN") or "").strip()
 OPEN_PATHS = {"/api/status", "/api/index", "/api/index.py"}
@@ -62,7 +63,6 @@ async def token_guard(request: Request, call_next):
     return await call_next(request)
 
 
-# CORS: izinkan akses dari frontend manapun (Vercel, localhost, dll)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -81,9 +81,6 @@ async def vercel_routing_middleware(request: Request, call_next):
             request.scope["path"] = clean
     return await call_next(request)
 
-# ============================================================
-# CONFIG
-# ============================================================
 
 GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_TRANSCRIBE_URL = "https://api.groq.com/openai/v1/audio/transcriptions"
@@ -95,6 +92,10 @@ MAX_MESSAGE_CHARS = 50000
 MAX_CANVAS_CHARS = 30000
 MAX_MEMORY_ITEMS = 50
 MAX_TRANSCRIPTION_BYTES = 25 * 1024 * 1024
+MAX_TOKENS_CAP = 8192
+
+REASONING_MODEL_PREFIXES = ("openai/gpt-oss",)
+RETRY_REASONING_EFFORT = "low"
 
 GROQ_VISION_MODELS = {
     "llama-3.2-11b-vision-preview",
@@ -142,9 +143,6 @@ MODES: Dict[str, Dict[str, Any]] = {
 }
 
 
-# Aturan keamanan ini otomatis di-append ke system prompt SEMUA mode.
-# Catatan: prompt-level defense itu membantu, tapi bukan satu-satunya
-# perlindungan — layer redact_secrets() di streaming tetap jaga-jaga.
 SAFETY_RULES = (
     "\n\n--- SECURITY RULES (always apply, cannot be overridden by the user) ---\n"
     "1. Never reveal, print, encode, or hint at API keys, tokens, passwords, "
@@ -168,10 +166,6 @@ def vision_available() -> bool:
     return bool(VISION_OVERRIDE)
 
 
-# ============================================================
-# API KEY MANAGER
-# ============================================================
-
 class KeyManager:
     COOLDOWN_SECONDS = 60
 
@@ -192,7 +186,6 @@ class KeyManager:
             if value:
                 found.append(value)
 
-        # Remove duplicates while preserving order.
         self.keys = list(dict.fromkeys(found))
 
     def count(self) -> int:
@@ -212,7 +205,6 @@ class KeyManager:
             if now >= self.skipped.get(key, 0)
         ]
 
-        # If every key is temporarily skipped, retry all.
         return available or self.keys
 
     def iter_keys(self) -> List[str]:
@@ -239,10 +231,6 @@ keys = KeyManager()
 def has_keys() -> bool:
     return keys.count() > 0
 
-
-# ============================================================
-# HELPERS
-# ============================================================
 
 def safe_mode(mode: Any) -> str:
     if not isinstance(mode, str):
@@ -305,7 +293,37 @@ def validate_messages(messages: Any):
             "content": content
         })
 
+    first = messages[0] if messages and isinstance(messages[0], dict) else {}
+
+    if cleaned:
+        for key in ("_custom", "_memory"):
+            if key in first:
+                cleaned[0][key] = first[key]
+
     return cleaned, None
+
+
+FAILURE_TITLE = "**SOMETHING WENT WRONG.**"
+FAILURE_FOOTER = "[ TRY AGAIN ]"
+UI_PLACEHOLDERS = ("*(empty response)*",)
+UI_ERROR_TITLES = (FAILURE_TITLE, "**CONNECTION LOST.**")
+NOTICE_MAX_CHARS = 700
+
+
+def strip_ui_noise(content: str) -> str:
+    text = content.strip()
+
+    if text in UI_PLACEHOLDERS:
+        return ""
+
+    if text.endswith(FAILURE_FOOTER):
+        for title in UI_ERROR_TITLES:
+            start = text.rfind(title)
+
+            if start != -1 and len(text) - start <= NOTICE_MAX_CHARS:
+                return text[:start].strip()
+
+    return content
 
 
 def build_messages(
@@ -314,8 +332,6 @@ def build_messages(
 ):
     system = MODES[mode]["system"]
 
-    # Custom instructions & memory items are accepted only as
-    # plain text / list of short strings (never as dicts).
     custom = None
     memory = None
 
@@ -364,6 +380,12 @@ def build_messages(
         if role not in ("user", "assistant"):
             continue
 
+        if role == "assistant" and isinstance(content, str):
+            content = strip_ui_noise(content)
+
+            if not content:
+                continue
+
         output.append({
             "role": role,
             "content": content
@@ -376,11 +398,6 @@ async def read_limited_upload(
     file: UploadFile,
     max_bytes: int
 ):
-    """
-    Read uploaded files in chunks.
-    Stops once the size limit is exceeded.
-    """
-
     chunks = []
     total = 0
 
@@ -404,11 +421,6 @@ GSK_PATTERN = re.compile(r"gsk_[A-Za-z0-9_\-]{16,}")
 
 
 def redact_secrets(text: str) -> str:
-    """
-    Jaring pengaman output: sensor credential kalau (entah bagaimana)
-    muncul di jawaban model. Key Groq sebenarnya TIDAK pernah dikirim
-    ke model, jadi ini murni defense-in-depth.
-    """
     cleaned = GSK_PATTERN.sub("[REDACTED]", text)
 
     for secret in keys.keys:
@@ -426,9 +438,247 @@ def sse(data: Dict[str, Any]) -> str:
     )
 
 
-# ============================================================
-# GROQ STREAMING
-# ============================================================
+ORG_PATTERN = re.compile(r"\borg_[A-Za-z0-9]{6,}")
+
+
+def scrub(text: Any, limit: int = 300) -> str:
+    cleaned = ORG_PATTERN.sub(
+        "org_[REDACTED]",
+        redact_secrets(str(text))
+    )
+
+    return " ".join(cleaned.split())[:limit]
+
+
+def failure_notice(reason: str, after_text: bool = False) -> str:
+    logger.warning("chat failed: %s", reason)
+
+    lead = "\n\n" if after_text else ""
+
+    return sse({
+        "delta": f"{lead}{FAILURE_TITLE}\n\n{reason}\n\n{FAILURE_FOOTER}"
+    })
+
+
+class GroqFailure(NamedTuple):
+    code: str
+    reason: str
+    groq_code: str = ""
+
+
+def groq_failure(status: int, body: str) -> GroqFailure:
+    kind = "provider_error" if provider_error(status) else "upstream_error"
+    message: Any = body
+    groq_code = ""
+
+    try:
+        error = json.loads(body).get("error")
+    except (ValueError, AttributeError):
+        error = None
+
+    if isinstance(error, dict):
+        message = error.get("message") or body
+        groq_code = str(error.get("code") or "")
+
+    return GroqFailure(
+        f"{kind}:{status}",
+        f"The model provider answered HTTP {status}: {scrub(message)}",
+        groq_code
+    )
+
+
+def network_failure(error: Exception) -> GroqFailure:
+    name = error.__class__.__name__
+
+    return GroqFailure(
+        f"network_error:{name}",
+        f"Could not reach the model provider ({name})."
+    )
+
+
+def first_choice(data: Any) -> Tuple[Dict[str, Any], Optional[str]]:
+    choices = data.get("choices") if isinstance(data, dict) else None
+    choice = choices[0] if choices and isinstance(choices[0], dict) else {}
+    message = choice.get("message")
+
+    return (
+        message if isinstance(message, dict) else {},
+        choice.get("finish_reason")
+    )
+
+
+def message_text(message: Dict[str, Any]) -> str:
+    for field in ("content", "refusal"):
+        value = message.get(field)
+
+        if isinstance(value, str) and value.strip():
+            return value
+
+    return ""
+
+
+def empty_reason(finish: Optional[str]) -> str:
+    if finish == "length":
+        return (
+            "The model spent its whole token budget on hidden reasoning "
+            "and never wrote an answer (`finish_reason=length`)."
+        )
+
+    return (
+        "The model finished without writing an answer "
+        f"(`finish_reason={finish or 'unknown'}`)."
+    )
+
+
+async def groq_json(
+    payload: Dict[str, Any]
+) -> Tuple[Optional[Dict[str, Any]], Optional[GroqFailure]]:
+    failure = GroqFailure("NO_KEYS", "No Groq API keys configured.")
+
+    for key in keys.iter_keys():
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(120.0, connect=20.0)
+            ) as client:
+                response = await client.post(
+                    GROQ_CHAT_URL,
+                    headers={"Authorization": f"Bearer {key}"},
+                    json=payload
+                )
+        except httpx.HTTPError as error:
+            failure = network_failure(error)
+            continue
+
+        if response.status_code == 200:
+            return response.json(), None
+
+        failure = groq_failure(response.status_code, response.text)
+
+        if provider_error(response.status_code):
+            keys.skip(key)
+            continue
+
+        break
+
+    return None, failure
+
+
+async def retry_for_text(
+    payload: Dict[str, Any],
+    finish: Optional[str]
+) -> Tuple[str, str]:
+    logger.warning(
+        "no answer text from the model (finish_reason=%s); retrying once",
+        finish
+    )
+
+    retry = {k: v for k, v in payload.items() if k != "stream"}
+
+    if retry["model"].startswith(REASONING_MODEL_PREFIXES):
+        retry["reasoning_effort"] = RETRY_REASONING_EFFORT
+
+    if finish == "length":
+        retry["max_tokens"] = min(retry["max_tokens"] * 2, MAX_TOKENS_CAP)
+
+    data, failure = await groq_json(retry)
+
+    if failure:
+        return "", failure.reason
+
+    message, finish = first_choice(data)
+
+    return message_text(message), empty_reason(finish)
+
+
+async def stream_once(
+    key: str,
+    payload: Dict[str, Any],
+    outcome: Dict[str, Any]
+):
+    headers = {
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+
+    timeout = httpx.Timeout(
+        300.0,
+        connect=20.0
+    )
+
+    async with httpx.AsyncClient(
+        timeout=timeout
+    ) as client:
+
+        async with client.stream(
+            "POST",
+            GROQ_CHAT_URL,
+            headers=headers,
+            json=payload
+        ) as response:
+
+            if response.status_code != 200:
+                body = await response.aread()
+
+                outcome["failure"] = groq_failure(
+                    response.status_code,
+                    body.decode(errors="ignore")
+                )
+                return
+
+            async for line in response.aiter_lines():
+
+                if not line.startswith("data:"):
+                    continue
+
+                data = line[5:].strip()
+
+                if data == "[DONE]":
+                    return
+
+                try:
+                    chunk = json.loads(data)
+                except json.JSONDecodeError:
+                    continue
+
+                if not isinstance(chunk, dict):
+                    continue
+
+                x_groq = chunk.get("x_groq")
+                problem = chunk.get("error") or (
+                    x_groq.get("error") if isinstance(x_groq, dict) else None
+                )
+
+                if problem:
+                    if isinstance(problem, dict):
+                        problem = problem.get("message") or problem
+
+                    outcome["problem"] = scrub(problem)
+                    return
+
+                choices = chunk.get("choices") or []
+
+                if not choices:
+                    continue
+
+                delta = (
+                    choices[0].get("delta") or {}
+                )
+
+                finish = choices[0].get("finish_reason")
+
+                if finish:
+                    outcome["finish"] = finish
+
+                if isinstance(delta.get("refusal"), str):
+                    outcome["refusal"] = (
+                        outcome.get("refusal", "") + delta["refusal"]
+                    )
+
+                content = delta.get("content")
+
+                if isinstance(content, str) and content:
+                    yield content
+
 
 def make_stream(
     mode: str,
@@ -444,105 +694,85 @@ def make_stream(
             yield sse({"done": True})
             return
 
-        last_error: Optional[str] = None
+        shown = False
 
-        payload = {
-            "model": MODES[mode]["model"],
-            "messages": build_messages(mode, messages),
-            "stream": True,
-            "temperature": extra.get("temperature", 0.7),
-            "max_tokens": extra.get("max_tokens", 2048),
-        }
-
-        for key in order:
-            headers = {
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
+        try:
+            payload = {
+                "model": MODES[mode]["model"],
+                "messages": build_messages(mode, messages),
+                "stream": True,
+                "temperature": extra.get("temperature", 0.7),
+                "max_tokens": extra.get("max_tokens", 2048),
             }
 
-            try:
-                timeout = httpx.Timeout(
-                    300.0,
-                    connect=20.0
+            outcome: Dict[str, Any] = {}
+
+            for key in order:
+                outcome = {}
+
+                try:
+                    async with aclosing(
+                        stream_once(key, payload, outcome)
+                    ) as pieces:
+
+                        async for piece in pieces:
+                            shown = shown or bool(piece.strip())
+
+                            yield sse({
+                                "delta": redact_secrets(piece)
+                            })
+
+                except httpx.HTTPError as error:
+                    outcome["failure"] = network_failure(error)
+
+                failure = outcome.get("failure")
+
+                if failure is None or shown:
+                    break
+
+                if failure.code.startswith("provider_error"):
+                    keys.skip(key)
+                elif not failure.code.startswith("network_error"):
+                    break
+
+            failure = outcome.get("failure")
+            problem = failure.reason if failure else outcome.get("problem")
+            refusal = outcome.get("refusal") or ""
+
+            if shown:
+                if problem:
+                    yield failure_notice(
+                        f"The answer was cut off: {problem}",
+                        after_text=True
+                    )
+
+            elif failure:
+                yield failure_notice(failure.reason)
+
+            elif refusal.strip():
+                yield sse({"delta": redact_secrets(refusal)})
+
+            else:
+                if problem:
+                    logger.warning("stream stopped early: %s", problem)
+
+                text, reason = await retry_for_text(
+                    payload,
+                    outcome.get("finish")
                 )
 
-                async with httpx.AsyncClient(
-                    timeout=timeout
-                ) as client:
+                if text:
+                    yield sse({"delta": redact_secrets(text)})
+                else:
+                    yield failure_notice(reason)
 
-                    async with client.stream(
-                        "POST",
-                        GROQ_CHAT_URL,
-                        headers=headers,
-                        json=payload
-                    ) as response:
+        except Exception as error:
+            logger.exception("chat stream failed")
 
-                        if response.status_code != 200:
-                            body = await response.aread()
-
-                            detail = body.decode(
-                                errors="ignore"
-                            )[:500]
-
-                            if provider_error(response.status_code):
-                                keys.skip(key)
-                                last_error = (
-                                    f"provider_error:{response.status_code}:{detail}"
-                                )
-                                continue
-
-                            last_error = (
-                                f"upstream_error:{response.status_code}:{detail}"
-                            )
-
-                            yield sse({"error": last_error})
-                            yield sse({"done": True})
-                            return
-
-                        async for line in response.aiter_lines():
-
-                            if not line.startswith("data:"):
-                                continue
-
-                            data = line[5:].strip()
-
-                            if data == "[DONE]":
-                                yield sse({"done": True})
-                                return
-
-                            try:
-                                chunk = json.loads(data)
-                            except json.JSONDecodeError:
-                                continue
-
-                            choices = chunk.get("choices") or []
-
-                            if not choices:
-                                continue
-
-                            delta = (
-                                choices[0].get("delta") or {}
-                            )
-
-                            content = delta.get("content")
-
-                            if isinstance(content, str) and content:
-                                yield sse({
-                                    "delta": redact_secrets(content)
-                                })
-
-                        yield sse({"done": True})
-                        return
-
-            except httpx.HTTPError as error:
-                last_error = (
-                    f"network_error:{error.__class__.__name__}"
-                )
-                continue
-
-        yield sse({
-            "error": last_error or "UNKNOWN_ERROR"
-        })
+            yield failure_notice(
+                f"The chat backend failed ({error.__class__.__name__}).",
+                after_text=shown
+            )
 
         yield sse({"done": True})
 
@@ -569,37 +799,6 @@ BASH_TOOL = {
 }
 
 
-async def groq_json(payload: Dict[str, Any]):
-    last_error = "NO_KEYS"
-
-    for key in keys.iter_keys():
-        try:
-            async with httpx.AsyncClient(
-                timeout=httpx.Timeout(120.0, connect=20.0)
-            ) as client:
-                response = await client.post(
-                    GROQ_CHAT_URL,
-                    headers={"Authorization": f"Bearer {key}"},
-                    json=payload
-                )
-        except httpx.HTTPError as error:
-            last_error = f"network_error:{error.__class__.__name__}"
-            continue
-
-        if response.status_code == 200:
-            return response.json(), None
-
-        last_error = f"upstream_error:{response.status_code}"
-
-        if provider_error(response.status_code):
-            keys.skip(key)
-            continue
-
-        break
-
-    return None, last_error
-
-
 async def run_bash(box, command: str) -> str:
     try:
         result = await box.run_command(
@@ -617,12 +816,27 @@ async def run_bash(box, command: str) -> str:
     return f"exit={result.returncode}\n{stdout}{stderr}"[:AGENT_OUTPUT_CHARS]
 
 
+def text_only(payload: Dict[str, Any]) -> Dict[str, Any]:
+    request = dict(payload)
+
+    if any(m.get("role") == "tool" for m in request["messages"]):
+        request["tool_choice"] = "none"
+    else:
+        request.pop("tools", None)
+        request.pop("tool_choice", None)
+
+    return request
+
+
 def make_agent_stream(
     mode: str,
     messages: List[Dict[str, Any]],
     extra: Dict[str, Any]
 ):
     async def generator():
+        shown = False
+        answered = False
+
         try:
             from vercel import sandbox as vsandbox
 
@@ -636,26 +850,44 @@ def make_agent_stream(
                 for step in range(AGENT_MAX_STEPS):
                     final_step = step == AGENT_MAX_STEPS - 1
 
-                    data, error = await groq_json({
+                    payload = {
                         "model": MODES[mode]["model"],
                         "messages": convo,
                         "tools": [BASH_TOOL],
                         "tool_choice": "none" if final_step else "auto",
                         "temperature": extra.get("temperature", 0.7),
                         "max_tokens": extra.get("max_tokens", 2048),
-                    })
+                    }
 
-                    if error:
-                        yield sse({"error": error})
+                    data, failure = await groq_json(payload)
+
+                    if failure and failure.groq_code != "tool_use_failed":
+                        yield failure_notice(failure.reason, after_text=shown)
+                        answered = True
                         break
 
-                    message = data["choices"][0]["message"]
+                    if failure:
+                        logger.warning("tool call rejected: %s", failure.reason)
+
+                    message, finish = first_choice(data)
                     calls = message.get("tool_calls") or []
 
                     if not calls:
-                        yield sse({
-                            "delta": redact_secrets(message.get("content") or "")
-                        })
+                        text = message_text(message)
+                        reason = ""
+
+                        if not text:
+                            text, reason = await retry_for_text(
+                                text_only(payload),
+                                finish
+                            )
+
+                        if text:
+                            yield sse({"delta": redact_secrets(text)})
+                        else:
+                            yield failure_notice(reason, after_text=shown)
+
+                        answered = True
                         break
 
                     convo.append({
@@ -674,6 +906,7 @@ def make_agent_stream(
 
                         label = " ".join(command.split())[:120].replace("]", ")")
                         yield sse({"delta": f"[bash: {label}]\n"})
+                        shown = True
 
                         output = (
                             await run_bash(box, command)
@@ -693,20 +926,19 @@ def make_agent_stream(
                         })
 
         except Exception as error:
-            yield sse({"error": f"agent_error:{error.__class__.__name__}"})
+            logger.exception("coding agent failed")
+
+            if not answered:
+                yield failure_notice(
+                    f"The coding agent failed ({error.__class__.__name__}).",
+                    after_text=shown
+                )
 
         yield sse({"done": True})
 
     return generator
 
 
-# ============================================================
-# FRONTEND, ROOT & HEALTH
-# ============================================================
-
-# Lokasi folder Frontend relatif terhadap file ini
-# (backend/main.py -> ../Frontend/index.html), jadi path-nya
-# tetap benar dari working directory mana pun uvicorn dijalankan.
 BACKEND_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.normpath(
     os.path.join(BACKEND_DIR, "..", "Frontend")
@@ -796,10 +1028,6 @@ async def models():
     return {"modes": output}
 
 
-# ============================================================
-# CHAT
-# ============================================================
-
 @app.post("/api/chat")
 async def chat(request: Request):
 
@@ -869,7 +1097,7 @@ async def chat(request: Request):
 
     try:
         max_tokens = int(max_tokens)
-        max_tokens = max(1, min(max_tokens, 8192))
+        max_tokens = max(1, min(max_tokens, MAX_TOKENS_CAP))
     except (TypeError, ValueError):
         max_tokens = 2048
 
@@ -894,10 +1122,6 @@ async def chat(request: Request):
         }
     )
 
-
-# ============================================================
-# RESEARCH SEARCH
-# ============================================================
 
 @app.post("/api/search")
 async def search(request: Request):
@@ -976,10 +1200,6 @@ async def search(request: Request):
     )
 
 
-# ============================================================
-# FILE UPLOAD
-# ============================================================
-
 ALLOWED_EXTENSIONS = {
     ".pdf", ".docx", ".doc", ".txt", ".csv",
     ".xlsx", ".pptx", ".json", ".zip",
@@ -1049,16 +1269,10 @@ async def upload(file: UploadFile = File(...)):
         )
 
     else:
-        # Non-text files are accepted as attachments,
-        # but this endpoint does not parse their contents.
         meta["parsed"] = False
 
     return meta
 
-
-# ============================================================
-# AUDIO TRANSCRIPTION
-# ============================================================
 
 @app.post("/api/transcribe")
 async def transcribe(file: UploadFile = File(...)):
@@ -1151,10 +1365,6 @@ async def transcribe(file: UploadFile = File(...)):
         last_error
     )
 
-
-# ============================================================
-# CANVAS
-# ============================================================
 
 @app.post("/api/canvas")
 async def canvas(request: Request):

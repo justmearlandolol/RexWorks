@@ -133,7 +133,9 @@ MODES: Dict[str, Dict[str, Any]] = {
         "system": (
             "You are RexWork Coding, an expert software engineer powered by GPT-OSS 120B. "
             "You assist with full-stack coding, workspace files, debugging, refactoring, and code review. "
-            "When outputting code, provide complete, production-ready code blocks with file names."
+            "When outputting code, provide complete, production-ready code blocks with file names. "
+            "You have a bash tool running in an isolated Linux sandbox; use it to run, test and verify code. "
+            "The sandbox is reset on every user message, so recreate any files you need."
         ),
     },
 }
@@ -546,6 +548,157 @@ def make_stream(
     return generator
 
 
+AGENT_MAX_STEPS = 6
+AGENT_OUTPUT_CHARS = 4000
+AGENT_PREVIEW_CHARS = 800
+AGENT_COMMAND_TIMEOUT = 60
+AGENT_SANDBOX_LIMIT = 240
+
+BASH_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "bash",
+        "description": "Run a bash command in an isolated Linux sandbox.",
+        "parameters": {
+            "type": "object",
+            "properties": {"command": {"type": "string"}},
+            "required": ["command"],
+        },
+    },
+}
+
+
+async def groq_json(payload: Dict[str, Any]):
+    last_error = "NO_KEYS"
+
+    for key in keys.iter_keys():
+        try:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(120.0, connect=20.0)
+            ) as client:
+                response = await client.post(
+                    GROQ_CHAT_URL,
+                    headers={"Authorization": f"Bearer {key}"},
+                    json=payload
+                )
+        except httpx.HTTPError as error:
+            last_error = f"network_error:{error.__class__.__name__}"
+            continue
+
+        if response.status_code == 200:
+            return response.json(), None
+
+        last_error = f"upstream_error:{response.status_code}"
+
+        if provider_error(response.status_code):
+            keys.skip(key)
+            continue
+
+        break
+
+    return None, last_error
+
+
+async def run_bash(box, command: str) -> str:
+    try:
+        result = await box.run_command(
+            "bash",
+            ["-c", command],
+            capture_output=True,
+            kill_after=AGENT_COMMAND_TIMEOUT
+        )
+    except Exception as error:
+        return f"sandbox_error:{error.__class__.__name__}"
+
+    stdout = (result.stdout or b"").decode(errors="replace")
+    stderr = (result.stderr or b"").decode(errors="replace")
+
+    return f"exit={result.returncode}\n{stdout}{stderr}"[:AGENT_OUTPUT_CHARS]
+
+
+def make_agent_stream(
+    mode: str,
+    messages: List[Dict[str, Any]],
+    extra: Dict[str, Any]
+):
+    async def generator():
+        try:
+            from vercel import sandbox as vsandbox
+
+            convo = build_messages(mode, messages)
+
+            async with vsandbox.create_sandbox(
+                persistent=False,
+                execution_time_limit=AGENT_SANDBOX_LIMIT
+            ) as box:
+
+                for step in range(AGENT_MAX_STEPS):
+                    final_step = step == AGENT_MAX_STEPS - 1
+
+                    data, error = await groq_json({
+                        "model": MODES[mode]["model"],
+                        "messages": convo,
+                        "tools": [BASH_TOOL],
+                        "tool_choice": "none" if final_step else "auto",
+                        "temperature": extra.get("temperature", 0.7),
+                        "max_tokens": extra.get("max_tokens", 2048),
+                    })
+
+                    if error:
+                        yield sse({"error": error})
+                        break
+
+                    message = data["choices"][0]["message"]
+                    calls = message.get("tool_calls") or []
+
+                    if not calls:
+                        yield sse({
+                            "delta": redact_secrets(message.get("content") or "")
+                        })
+                        break
+
+                    convo.append({
+                        "role": "assistant",
+                        "content": message.get("content") or "",
+                        "tool_calls": calls
+                    })
+
+                    for call in calls:
+                        try:
+                            command = str(json.loads(
+                                call["function"]["arguments"]
+                            )["command"])
+                        except (KeyError, TypeError, ValueError):
+                            command = ""
+
+                        label = " ".join(command.split())[:120].replace("]", ")")
+                        yield sse({"delta": f"[bash: {label}]\n"})
+
+                        output = (
+                            await run_bash(box, command)
+                            if command
+                            else "invalid_arguments"
+                        )
+                        output = redact_secrets(output)
+
+                        yield sse({
+                            "delta": f"```\n{output[:AGENT_PREVIEW_CHARS]}\n```\n\n"
+                        })
+
+                        convo.append({
+                            "role": "tool",
+                            "tool_call_id": call.get("id"),
+                            "content": output
+                        })
+
+        except Exception as error:
+            yield sse({"error": f"agent_error:{error.__class__.__name__}"})
+
+        yield sse({"done": True})
+
+    return generator
+
+
 # ============================================================
 # FRONTEND, ROOT & HEALTH
 # ============================================================
@@ -719,7 +872,9 @@ async def chat(request: Request):
     except (TypeError, ValueError):
         max_tokens = 2048
 
-    stream = make_stream(
+    factory = make_agent_stream if mode == "coding" else make_stream
+
+    stream = factory(
         mode,
         messages,
         {

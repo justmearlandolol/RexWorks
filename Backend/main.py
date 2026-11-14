@@ -1,8 +1,8 @@
-
 import os
 import re
 import time
 import json
+import secrets
 from typing import Optional, List, Dict, Any
 
 import httpx
@@ -23,6 +23,43 @@ app = FastAPI(
     title="RexWork",
     version="1.1.0"
 )
+
+APP_TOKEN = (os.getenv("APP_TOKEN") or "").strip()
+
+
+@app.middleware("http")
+async def token_guard(request: Request, call_next):
+    path = request.url.path
+
+    if (
+        request.method == "OPTIONS"
+        or not path.startswith("/api/")
+        or path.endswith("/health")
+        or path == "/api/status"
+    ):
+        return await call_next(request)
+
+    if not APP_TOKEN:
+        return error_response(
+            503,
+            "TOKEN_NOT_CONFIGURED",
+            "APP_TOKEN is not set on the server."
+        )
+
+    supplied = request.headers.get("x-app-token", "")
+
+    if not secrets.compare_digest(
+        supplied.encode(),
+        APP_TOKEN.encode()
+    ):
+        return error_response(
+            401,
+            "UNAUTHORIZED",
+            "Invalid or missing token."
+        )
+
+    return await call_next(request)
+
 
 # CORS: izinkan akses dari frontend manapun (Vercel, localhost, dll)
 app.add_middleware(
@@ -126,14 +163,6 @@ for _m in MODES.values():
 
 def vision_available() -> bool:
     return bool(VISION_OVERRIDE)
-
-    if not model:
-        return False
-
-    return (
-        model in GROQ_VISION_MODELS
-        or bool(VISION_OVERRIDE)
-    )
 
 
 # ============================================================
@@ -711,38 +740,6 @@ async def chat(request: Request):
 
 
 # ============================================================
-# BASH EXECUTION (CODING WORKSPACE AGENT)
-# ============================================================
-
-try:
-    from agent_tools import execute_agent_bash, list_workspace_files
-except ImportError:
-    try:
-        from backend.agent_tools import execute_agent_bash, list_workspace_files
-    except ImportError:
-        def execute_agent_bash(cmd, timeout=15):
-            import subprocess
-            try:
-                proc = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=timeout)
-                return {"ok": True, "stdout": proc.stdout, "stderr": proc.stderr, "returncode": proc.returncode}
-            except Exception as e:
-                return {"ok": False, "error": str(e)}
-
-@app.post("/api/bash")
-async def execute_bash(request: Request):
-    try:
-        body = await request.json()
-    except Exception:
-        return error_response(400, "INVALID_JSON", "Invalid JSON body.")
-
-    command = (body.get("command") or "").strip()
-    if not command:
-        return error_response(400, "EMPTY_COMMAND", "No command provided.")
-
-    res = execute_agent_bash(command, timeout=15)
-    return res
-
-# ============================================================
 # RESEARCH SEARCH
 # ============================================================
 
@@ -805,7 +802,7 @@ async def search(request: Request):
     ]
 
     stream = make_stream(
-        "research",
+        "chat",
         messages,
         {
             "temperature": 0.4,

@@ -125,7 +125,7 @@ for _m in MODES.values():
 
 
 def vision_available() -> bool:
-    model = MODES["vision"]["model"]
+    return bool(VISION_OVERRIDE)
 
     if not model:
         return False

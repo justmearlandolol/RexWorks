@@ -1172,7 +1172,8 @@ async function streamChat(mode, messages, onDelta, signal){
 
 async function demoStream(mode, messages, onDelta){
   const lastUser = [...messages].reverse().find(m=>m.role==='user');
-  const text = (lastUser && lastUser.content) || '';
+  const rawText = (lastUser && lastUser.content) || '';
+  const text = String(rawText).split('\n\nCoding mode behavior:')[0];
   const answer = demoAnswer(mode, text);
   const words = answer.split(/(\s+)/);
   const chunk = 3;
@@ -1183,11 +1184,18 @@ async function demoStream(mode, messages, onDelta){
   return { ok:true, demo:true };
 }
 
+function explicitlyRequestsSource(text){
+  const t = String(text || '').toLowerCase();
+  return /(?:\b(?:buat|buatkan|tulis|tuliskan|generate|berikan|kirimkan|show|write|create|implement)\b[\s\S]{0,48}\b(?:kode|code|source|script|snippet|function|component|file)\b)|(?:\b(?:source code|full code|kode lengkap|kodenya|source-nya)\b)/i.test(t);
+}
 function demoAnswer(mode, text){
   const t = text.replace(/[\[\]]/g,'').trim();
   const hint = '> ⚠️ **DEMO RESPONSE** — no Groq API key is configured, so this answer is simulated (not model output).';
   if(mode==='coding'){
-    return `${hint}\n\nHere is a clean starting point based on *"${t.slice(0,80)}"*:\n\n[created: solution.js]\n\n\`\`\`js\nfunction solve(input) {\n  return input;\n}\n\nconsole.log(solve("hello"));\n\`\`\`\n\n**Next steps:**\n- Describe the expected input and output\n- Share any error messages or failing tests\n- I will refactor this into production-quality code.`;
+    if(!explicitlyRequestsSource(t)){
+      return `${hint}\n\nHalo! Aku Arlon-powered 2. Ceritain dulu masalah coding kamu atau target yang mau dibuat.\n\nKirim error message, stack trace, bahasa/framework, dan perilaku yang kamu harapkan. Kalau kamu sudah siap minta implementasi, bilang langsung **buatkan source code-nya**.`;
+    }
+    return `${hint}\n\nSiap, aku buatkan starting point untuk *"${t.slice(0,80)}"*:\n\n[created: solution.js]\n\n\`\`\`js\nfunction solve(input) {\n  return input;\n}\n\nconsole.log(solve("hello"));\n\`\`\`\n\nFile sudah disimpan ke Workspace. Kalau kamu ingin struktur yang lebih spesifik, sebutkan requirement dan format input-outputnya.`;
   }
   if(mode==='research'){
     return `${hint}\n\n## Research notes: ${t.slice(0,60) || 'your topic'}\n\nA live web search was **not** performed. When the Groq Compound backend is connected, this mode returns real, source-cited answers.\n\nSimulated sources (for UI preview only):\n\n1. *Example Source One* — overview summary\n2. *Example Source Two* — key data points\n3. *Example Source Three* — further reading`;
@@ -2070,7 +2078,7 @@ async function sendMessage(){
     contentForModel = text ? text : `[File attached: ${state.attachments.map(a=>a.name).join(', ')}]`;
   }
   if(state.mode==='coding'){
-    contentForModel += '\n\nWhen you create a file, put [created: relative/path.ext] immediately before its fenced code block. When you create a folder, put [created: relative/folder/].';
+    contentForModel += '\n\nCoding mode behavior:\nStart with a short friendly greeting and diagnose or discuss the coding problem first. Do not output source code, code blocks, or create workspace files unless the user explicitly asks for source code, implementation, or a file. If the user explicitly asks, provide the requested source and put [created: relative/path.ext] immediately before each fenced code block. For folders use [created: relative/folder/].';
   }
 
   $('#composer-input').value='';
@@ -3508,5 +3516,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59dba2d7b1bf3f2',t:'MTc5NDU3MjM5Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59dba2d7b1bf3f2',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

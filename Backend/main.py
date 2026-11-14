@@ -2,8 +2,9 @@ import os
 import re
 import time
 import json
+import base64
+import hashlib
 import logging
-import secrets
 from contextlib import aclosing
 from typing import Optional, List, Dict, Any, NamedTuple, Tuple
 
@@ -27,40 +28,224 @@ app = FastAPI(
 
 logger = logging.getLogger("rexwork")
 
-APP_TOKEN = (os.getenv("APP_TOKEN") or "").strip()
+SUPABASE_URL = (
+    os.getenv("SUPABASE_URL")
+    or "https://fdlklzveockeibcmijmz.supabase.co"
+).strip().rstrip("/")
+AUTH_USER_URL = f"{SUPABASE_URL}/auth/v1/user"
 OPEN_PATHS = {"/api/status", "/api/index", "/api/index.py"}
+
+LOGIN_CACHE_SECONDS = 300
+LOGIN_REJECT_SECONDS = 30
+LOGIN_CACHE_LIMIT = 2000
+MAX_LOGIN_TOKEN_CHARS = 8192
+
+LOGIN_TOKEN_PATTERN = re.compile(
+    r"[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+"
+)
+LOGIN_KEY_PATTERN = re.compile(r"[A-Za-z0-9._\-]{20,512}")
+
+accepted_logins: Dict[str, float] = {}
+rejected_logins: Dict[str, float] = {}
+
+
+def login_token(request: Request) -> str:
+    scheme, _, value = request.headers.get(
+        "authorization",
+        ""
+    ).partition(" ")
+
+    if scheme.lower() != "bearer":
+        return ""
+
+    return value.strip()
+
+
+def token_expiry(token: str) -> Optional[float]:
+    if (
+        len(token) > MAX_LOGIN_TOKEN_CHARS
+        or not LOGIN_TOKEN_PATTERN.fullmatch(token)
+    ):
+        return None
+
+    payload = token.split(".")[1]
+
+    try:
+        claims = json.loads(
+            base64.urlsafe_b64decode(
+                payload + "=" * (-len(payload) % 4)
+            )
+        )
+        expiry = float(claims["exp"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+    if not 0 < expiry < 1e12:
+        return None
+
+    return expiry
+
+
+def remember_login(cache: Dict[str, float], digest: str, until: float):
+    if len(cache) >= LOGIN_CACHE_LIMIT:
+        now = time.time()
+
+        for key in [k for k, v in cache.items() if v <= now]:
+            del cache[key]
+
+        if len(cache) >= LOGIN_CACHE_LIMIT:
+            cache.clear()
+
+    cache[digest] = until
+
+
+def login_required():
+    return error_response(
+        401,
+        "LOGIN_REQUIRED",
+        "You are not logged in. Reload the page and log in again."
+    )
+
+
+def login_expired():
+    return error_response(
+        401,
+        "LOGIN_EXPIRED",
+        "Your login was not accepted. Reload the page. "
+        "If this keeps happening, log out in Settings and log in again."
+    )
+
+
+def login_unavailable():
+    return error_response(
+        503,
+        "AUTH_UNAVAILABLE",
+        "Could not check your login right now. Try again in a moment."
+    )
+
+
+async def check_login(request: Request) -> Optional[JSONResponse]:
+    token = login_token(request)
+    expiry = token_expiry(token) if token else None
+
+    if expiry is None:
+        return login_required()
+
+    now = time.time()
+
+    if expiry <= now:
+        return login_expired()
+
+    digest = hashlib.sha256(token.encode()).hexdigest()
+
+    if accepted_logins.get(digest, 0) > now:
+        return None
+
+    if rejected_logins.get(digest, 0) > now:
+        return login_expired()
+
+    apikey = request.headers.get("apikey", "").strip()
+
+    if not LOGIN_KEY_PATTERN.fullmatch(apikey):
+        return login_required()
+
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(10.0, connect=5.0)
+        ) as client:
+            response = await client.get(
+                AUTH_USER_URL,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": apikey
+                }
+            )
+    except httpx.HTTPError as error:
+        logger.warning(
+            "login check failed: %s",
+            error.__class__.__name__
+        )
+        return login_unavailable()
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+
+    if not isinstance(body, dict):
+        body = {}
+
+    user = body.get("user") if isinstance(body.get("user"), dict) else body
+
+    if (
+        response.status_code == 200
+        and isinstance(user.get("id"), str)
+        and user["id"]
+    ):
+        remember_login(
+            accepted_logins,
+            digest,
+            min(now + LOGIN_CACHE_SECONDS, expiry)
+        )
+        return None
+
+    if response.status_code in (401, 403):
+        if "error_code" in body or "msg" in body:
+            remember_login(
+                rejected_logins,
+                digest,
+                now + LOGIN_REJECT_SECONDS
+            )
+            return login_expired()
+
+        logger.warning("login service rejected the API key sent by the page")
+
+        return error_response(
+            401,
+            "AUTH_KEY_REJECTED",
+            "The login service did not accept this app's key."
+        )
+
+    logger.warning(
+        "login check answered HTTP %s",
+        response.status_code
+    )
+
+    return login_unavailable()
+
+
+def open_path(path: str) -> bool:
+    path = path.rstrip("/") or "/"
+
+    return (
+        not path.startswith("/api/")
+        or path.endswith("/health")
+        or path in OPEN_PATHS
+    )
+
+
+def open_request(request: Request) -> bool:
+    if request.method == "OPTIONS":
+        return True
+
+    path = request.scope.get("path", "")
+    root = request.scope.get("root_path", "")
+
+    if root and path.startswith(root) and not open_path(path[len(root):]):
+        return False
+
+    return open_path(path)
 
 
 @app.middleware("http")
-async def token_guard(request: Request, call_next):
-    path = request.url.path.rstrip("/") or "/"
-
-    if (
-        request.method == "OPTIONS"
-        or not path.startswith("/api/")
-        or path.endswith("/health")
-        or path in OPEN_PATHS
-    ):
+async def login_guard(request: Request, call_next):
+    if open_request(request):
         return await call_next(request)
 
-    if not APP_TOKEN:
-        return error_response(
-            503,
-            "TOKEN_NOT_CONFIGURED",
-            "APP_TOKEN is not set on the server."
-        )
+    failure = await check_login(request)
 
-    supplied = request.headers.get("x-app-token", "")
-
-    if not secrets.compare_digest(
-        supplied.encode(),
-        APP_TOKEN.encode()
-    ):
-        return error_response(
-            401,
-            "UNAUTHORIZED",
-            "Invalid or missing token."
-        )
+    if failure is not None:
+        return failure
 
     return await call_next(request)
 

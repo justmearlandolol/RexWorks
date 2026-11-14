@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-
 <meta name="rexwork-api" content="https://rexworks-backend.vercel.app" />
 <meta name="color-scheme" content="dark light" />
 <meta name="supabase-url" content="https://fdlklzveockeibcmijmz.supabase.co" />
@@ -1070,6 +1069,7 @@ function loadAll(){
 
 const META_API_BASE = ((document.querySelector('meta[name="rexwork-api"]') || {}).content || '').trim().replace(/\/+$/, '');
 let API_BASE = META_API_BASE || '';
+const APP_TOKEN = ((document.querySelector('meta[name="rexwork-token"]') || {}).content || '').trim();
 
 async function probeHealth(base){
   const url = (base ? base.replace(/\/+$/, '') : '') + '/api/health';
@@ -1132,7 +1132,7 @@ async function streamChat(mode, messages, onDelta, signal){
   }
   try{
     const body = { mode, messages, tools:{ web_search:state.search.webSearch, deep_research:state.search.deepResearch } };
-    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal });
+    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json','X-App-Token':APP_TOKEN}, body:JSON.stringify(body), signal });
     if(!res.ok){
       let j=null; try{ j=await res.json(); }catch(e){}
       return { ok:false, error: j && j.error, message: j && j.message };
@@ -2239,7 +2239,7 @@ function addFiles(files){
     if(!isImg){
       try{
         const fd = new FormData(); fd.append('file', f);
-        const r = await fetch(API_BASE + '/api/upload',{method:'POST',body:fd});
+        const r = await fetch(API_BASE + '/api/upload',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
         if(r.ok){ const j = await r.json(); a.readable = !!j.readable; a.text = j.text || null; }
       }catch(e){}
     } else {
@@ -2880,7 +2880,7 @@ function showVoicePill(listening, blob){
         
         if(state.backend.reachable && state.backend.keysLoaded>0){
           const fd=new FormData(); fd.append('file', blob, 'audio.webm');
-          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',body:fd});
+          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
           if(r.ok){ const j=await r.json(); $('#composer-input').value = (j.text||'').trim(); autoGrow(); toast('TRANSCRIBED'); pill.remove(); return; }
         }
         toast('TRANSCRIPTION UNAVAILABLE — PLAYING AUDIO');

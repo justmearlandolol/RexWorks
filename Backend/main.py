@@ -14,8 +14,10 @@ try:
 except ImportError:
     pass
 from fastapi import FastAPI, Request, UploadFile, File
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
 app = FastAPI(
@@ -254,6 +256,63 @@ def error_response(
             "error": error,
             "message": message
         }
+    )
+
+
+HTTP_ERROR_CODES = {
+    404: "NOT_FOUND",
+    405: "METHOD_NOT_ALLOWED",
+}
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(
+    request: Request,
+    error: StarletteHTTPException
+):
+    response = error_response(
+        error.status_code,
+        HTTP_ERROR_CODES.get(
+            error.status_code,
+            f"HTTP_{error.status_code}"
+        ),
+        f"{error.detail}: {request.method} {request.url.path}"
+    )
+
+    for name, value in (error.headers or {}).items():
+        response.headers[name] = value
+
+    return response
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(
+    request: Request,
+    error: RequestValidationError
+):
+    return error_response(
+        422,
+        "INVALID_REQUEST",
+        "The request is missing a required field or has an invalid one."
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_error_handler(
+    request: Request,
+    error: Exception
+):
+    logger.error(
+        "unhandled %s on %s %s",
+        error.__class__.__name__,
+        request.method,
+        request.url.path
+    )
+
+    return error_response(
+        500,
+        "INTERNAL_ERROR",
+        "The server hit an unexpected error."
     )
 
 

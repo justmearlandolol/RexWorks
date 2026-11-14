@@ -25,17 +25,18 @@ app = FastAPI(
 )
 
 APP_TOKEN = (os.getenv("APP_TOKEN") or "").strip()
+OPEN_PATHS = {"/api/status", "/api/index", "/api/index.py"}
 
 
 @app.middleware("http")
 async def token_guard(request: Request, call_next):
-    path = request.url.path
+    path = request.url.path.rstrip("/") or "/"
 
     if (
         request.method == "OPTIONS"
         or not path.startswith("/api/")
         or path.endswith("/health")
-        or path == "/api/status"
+        or path in OPEN_PATHS
     ):
         return await call_next(request)
 

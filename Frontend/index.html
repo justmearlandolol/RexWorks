@@ -1069,7 +1069,24 @@ function loadAll(){
 
 const META_API_BASE = ((document.querySelector('meta[name="rexwork-api"]') || {}).content || '').trim().replace(/\/+$/, '');
 let API_BASE = META_API_BASE || '';
-const APP_TOKEN = ((document.querySelector('meta[name="rexwork-token"]') || {}).content || '').trim();
+
+async function apiAuthHeaders(){
+  const client = getSupabaseClient();
+  if(!client) return {};
+  try{
+    const { data } = await client.auth.getSession();
+    const token = data && data.session && data.session.access_token;
+    if(!token) return {};
+    return { 'Authorization': 'Bearer ' + token, 'apikey': supabaseConfig().key };
+  }catch(e){
+    return {};
+  }
+}
+
+function failureBubble(message){
+  const reason = (typeof message === 'string' && message.trim()) ? message.trim() + '\n\n' : '';
+  return '**SOMETHING WENT WRONG.**\n\n' + reason + '[ TRY AGAIN ]';
+}
 
 async function probeHealth(base){
   const url = (base ? base.replace(/\/+$/, '') : '') + '/api/health';
@@ -1132,7 +1149,7 @@ async function streamChat(mode, messages, onDelta, signal){
   }
   try{
     const body = { mode, messages, tools:{ web_search:state.search.webSearch, deep_research:state.search.deepResearch } };
-    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json','X-App-Token':APP_TOKEN}, body:JSON.stringify(body), signal });
+    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:Object.assign({'Content-Type':'application/json'}, await apiAuthHeaders()), body:JSON.stringify(body), signal });
     if(!res.ok){
       let j=null; try{ j=await res.json(); }catch(e){}
       return { ok:false, error: j && j.error, message: j && j.message };
@@ -2134,7 +2151,7 @@ async function sendMessage(){
     } else if(res.error==='NETWORK'){
       asst.content = '**CONNECTION LOST.**\n\n[ TRY AGAIN ]';
     } else {
-      asst.content = asst.content || '**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+      asst.content = asst.content || failureBubble(res.message);
     }
   }
   if(res.demo) asst.demo = true;
@@ -2239,7 +2256,7 @@ function addFiles(files){
     if(!isImg){
       try{
         const fd = new FormData(); fd.append('file', f);
-        const r = await fetch(API_BASE + '/api/upload',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
+        const r = await fetch(API_BASE + '/api/upload',{method:'POST',headers:await apiAuthHeaders(),body:fd});
         if(r.ok){ const j = await r.json(); a.readable = !!j.readable; a.text = j.text || null; }
       }catch(e){}
     } else {
@@ -2880,7 +2897,7 @@ function showVoicePill(listening, blob){
         
         if(state.backend.reachable && state.backend.keysLoaded>0){
           const fd=new FormData(); fd.append('file', blob, 'audio.webm');
-          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
+          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',headers:await apiAuthHeaders(),body:fd});
           if(r.ok){ const j=await r.json(); $('#composer-input').value = (j.text||'').trim(); autoGrow(); toast('TRANSCRIBED'); pill.remove(); return; }
         }
         toast('TRANSCRIPTION UNAVAILABLE — PLAYING AUDIO');
@@ -3061,7 +3078,7 @@ async function regenerateFrom(){
     toast('MESSAGE CANCELLED');
     return;
   }
-  if(res.error) asst.content='**SOMETHING WENT WRONG.**\n\n[ TRY AGAIN ]';
+  if(res.error) asst.content=failureBubble(res.message);
   if(res.demo) asst.demo=true;
   if(!asst.content) asst.content='*(empty response)*';
   const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
@@ -3363,10 +3380,10 @@ function mergeProfileIntoAuth(profile){
 }
 async function hydrateAuthFromSupabase(){
   const client = getSupabaseClient();
-  if(!client) return authProfile();
+  if(!client) return null;
   try{
     const { data, error } = await client.auth.getSession();
-    if(error || !data || !data.session) return authProfile();
+    if(error || !data || !data.session || !data.session.user) return null;
     const session = data.session;
     const user = session.user;
     const metadata = user.user_metadata || {};
@@ -3376,6 +3393,7 @@ async function hydrateAuthFromSupabase(){
       userId: user.id,
       email: user.email || current.email || '',
       provider: (user.app_metadata || {}).provider || current.provider || 'supabase',
+      demo: false,
       access_token: session.access_token,
       name: metadata.full_name || metadata.name || metadata.user_name || current.name || current.username || '',
       username: metadata.user_name || metadata.preferred_username || current.username || '',
@@ -3385,7 +3403,7 @@ async function hydrateAuthFromSupabase(){
     localStorage.setItem('rexwork_auth', JSON.stringify(merged));
     return merged;
   }catch(error){
-    return authProfile();
+    return null;
   }
 }
 async function syncProfileFromSupabase(){
@@ -3440,7 +3458,8 @@ async function persistUserProfile(auth, avatarFile){
 
 async function boot(){
   const auth = await hydrateAuthFromSupabase();
-  if(!auth || (!auth.provider && !auth.id && !auth.userId)){
+  if(!auth){
+    localStorage.removeItem('rexwork_auth');
     window.location.replace('Main.html');
     return;
   }

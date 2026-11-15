@@ -108,6 +108,19 @@ body.sidebar-collapsed .chat-inner{
 }
 .side-item:hover .side-del-btn{ display:inline-flex; }
 .side-item .side-del-btn:hover{ color:var(--red); background:rgba(255,107,107,.15); }
+.side-item .side-act-btn{
+  display:none; width:20px; height:20px; align-items:center; justify-content:center;
+  background:none; border:none; color:var(--faint); border-radius:3px; cursor:pointer; flex:0 0 auto;
+}
+.side-item .side-act-btn svg{ width:12px; height:12px; }
+.side-item:hover .side-act-btn{ display:inline-flex; }
+.side-item .side-act-btn:hover{ color:var(--brand); background:rgba(255,176,0,.15); }
+.rn-meta{ display:flex; align-items:center; gap:10px; margin-top:8px; min-height:16px; }
+.rn-error{ flex:1; font-family:var(--font-mono); font-size:11px; line-height:1.35; color:var(--red); letter-spacing:.2px; }
+.rn-count{ font-family:var(--font-mono); font-size:11px; color:var(--faint); white-space:nowrap; }
+.rn-count.over{ color:var(--red); }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+.btn.primary:disabled{ background:var(--surface-3); border-color:var(--border); color:var(--faint); }
 .agent-model-picker{ position:relative; display:inline-flex; align-items:center; }
 .agent-model-btn{
   display:inline-flex; align-items:center; gap:6px; padding:4px 10px;
@@ -1542,7 +1555,8 @@ function renderSidebar(){
     <div class="side-item${active(c)}" data-id="${c.id}" data-type="chat" role="button" tabindex="0">
       <span class="mi" style="color:${(MODES[c.mode]||MODES.chat).color}">${MODE_ICONS[c.mode]||MODE_ICONS.chat}</span>
       <span class="t" title="${esc(c.title)}">${esc(c.title)}</span>
-      <button type="button" class="side-del-btn" data-act="del" title="Delete conversation">✕</button>
+      <button type="button" class="side-act-btn" data-act="rename" title="Rename conversation" aria-label="Rename conversation">${EDIT_SVG}</button>
+      <button type="button" class="side-del-btn" data-act="del" title="Delete conversation" aria-label="Delete conversation">✕</button>
     </div>`;
 
   const pinned = state.conversations.filter(c=>c.pinned && !c.archived).sort((a,b)=>b.updatedAt-a.updatedAt);
@@ -2390,7 +2404,7 @@ async function sendMessage(){
 function makeTitle(text){
   const t = text.replace(/[\[\]]/g,'').trim();
   const words = t.split(/\s+/).slice(0,5).join(' ').toUpperCase();
-  return words || 'NEW CHAT';
+  return cleanTitle(words) || 'NEW CHAT';
 }
 
 let renderTimer=null;
@@ -3163,13 +3177,61 @@ function confirmModal(msg, onOk){
 }
 
 
+let sidebarTap = { id:'', ts:0 };
 function openChat(id){ state.currentId=id; state.view='chat'; closeSidebar(); renderAll(); }
 
+const TITLE_MIN = 1;
+const TITLE_MAX = 100;
+
+function cleanTitle(value){
+  const text = String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  return text.slice(0, TITLE_MAX);
+}
+
 function renameChat(c){
+  if(!c) return;
   openModal(`<div class="modal-head"><span class="mh">RENAME CONVERSATION</span><button class="icon-btn" data-close>${X_SVG}</button></div>
-    <div class="modal-body"><input class="input" id="rn-name" value="${esc(c.title)}"/></div>
+    <div class="modal-body">
+      <input class="input" id="rn-name" type="text" maxlength="${TITLE_MAX}" autocomplete="off" spellcheck="false" value="${esc(c.title || '')}" placeholder="Conversation name"/>
+      <div class="rn-meta"><span class="rn-error" id="rn-error"></span><span class="rn-count" id="rn-count">0/${TITLE_MAX}</span></div>
+    </div>
     <div class="modal-foot"><button class="btn" data-close>CANCEL</button><button class="btn primary" id="rn-save">SAVE</button></div>`);
-  $('#rn-save').addEventListener('click',()=>{ const v=($('#rn-name').value||'').trim(); if(v){ c.title=v; saveConversations(); closeModal(); renderAll(); toast('CONVERSATION RENAMED'); } });
+  const input = $('#rn-name');
+  const error = $('#rn-error');
+  const counter = $('#rn-count');
+  const saveBtn = $('#rn-save');
+  if(!input || !saveBtn) return;
+  const validate = ()=>{
+    const raw = input.value;
+    const clean = cleanTitle(raw);
+    let message = '';
+    if(!raw.trim().length) message = 'NAME CANNOT BE EMPTY · MIN 1 CHARACTER';
+    else if(!clean.length) message = 'NAME CANNOT BE EMPTY · MIN 1 CHARACTER';
+    else if(raw.trim().length > TITLE_MAX) message = 'NAME IS TOO LONG · MAX 100 CHARACTERS';
+    counter.textContent = raw.length + '/' + TITLE_MAX;
+    counter.classList.toggle('over', raw.length > TITLE_MAX);
+    error.textContent = message;
+    saveBtn.disabled = Boolean(message);
+    return !message;
+  };
+  const commit = ()=>{
+    if(!validate()) return;
+    const title = cleanTitle(input.value);
+    if(!title) return;
+    c.title = title;
+    saveConversations();
+    closeModal();
+    renderAll();
+    toast('CONVERSATION RENAMED');
+  };
+  input.addEventListener('input', validate);
+  input.addEventListener('keydown', e=>{
+    if(e.key === 'Enter'){ e.preventDefault(); commit(); }
+  });
+  saveBtn.addEventListener('click', commit);
+  validate();
+  input.focus();
+  input.select();
 }
 function pinChat(c){ c.pinned=!c.pinned; saveConversations(); renderAll(); toast(c.pinned?'CHAT PINNED':'CHAT UNPINNED'); }
 function archiveChat(c){ c.archived=true; if(state.currentId===c.id){ state.currentId=null; resetDraftWorkspace(); } saveConversations(); renderAll(); toast('CHAT ARCHIVED'); }
@@ -3200,6 +3262,7 @@ function shareChat(c){
 function chatMoreMenu(c, anchorEl){
   const pop=$('#mode-pop'); 
   pop.innerHTML = `<div class="pop-label">CHAT ACTIONS</div>
+    <button class="pop-item" data-cc="rename"><span class="mi-txt"><span class="mi-name">RENAME</span></span></button>
     <button class="pop-item" data-cc="move"><span class="mi-txt"><span class="mi-name">MOVE TO PROJECT</span></span></button>
     <button class="pop-item" data-cc="archive"><span class="mi-txt"><span class="mi-name">ARCHIVE</span></span></button>
     <button class="pop-item" data-cc="share"><span class="mi-txt"><span class="mi-name">SHARE</span></span></button>
@@ -3208,7 +3271,8 @@ function chatMoreMenu(c, anchorEl){
   positionPopover(pop, anchorEl);
   const h=()=>{ pop.classList.remove('open'); pop.removeEventListener('click',clk); };
   const clk=(e)=>{ const b=e.target.closest('[data-cc]'); if(!b) return; const k=b.getAttribute('data-cc'); h();
-    if(k==='move') moveChat(c); else if(k==='archive') archiveChat(c); else if(k==='share') shareChat(c); else if(k==='delete') deleteChat(c);
+    if(k==='rename') renameChat(c);
+    else if(k==='move') moveChat(c); else if(k==='archive') archiveChat(c); else if(k==='share') shareChat(c); else if(k==='delete') deleteChat(c);
   };
   pop.addEventListener('click',clk);
   setTimeout(()=>document.addEventListener('click',function f(e){ if(!pop.contains(e.target)){ h(); document.removeEventListener('click',f); } }),0);
@@ -3478,6 +3542,10 @@ function bindEvents(){
       else if(act==='archive') archiveChat(c);
       else if(act==='more') chatMoreMenu(c, actBtn);
     } else {
+      const stamp = Date.now();
+      const doubleTapped = sidebarTap.id === id && (stamp - sidebarTap.ts) < 420;
+      sidebarTap = doubleTapped ? { id:'', ts:0 } : { id: id, ts: stamp };
+      if(doubleTapped){ renameChat(c); return; }
       openChat(id);
     }
   });
@@ -3754,7 +3822,7 @@ async function cloudPushConversation(c){
   const row = {
     user_id: cloud.userId,
     client_id: String(c.id),
-    title: String(c.title || 'NEW CHAT').slice(0, 200),
+    title: cleanTitle(c.title) || 'NEW CHAT',
     mode: MODES[c.mode] ? c.mode : 'chat',
     model: c.model || null,
     project_id: c.projectId || null,
@@ -3885,7 +3953,7 @@ async function cloudPullConversations(){
     });
     const conversation = {
       id: key,
-      title: row.title || 'NEW CHAT',
+      title: cleanTitle(row.title) || 'NEW CHAT',
       mode: MODES[row.mode] ? row.mode : 'chat',
       model: row.model || (MODES[row.mode] || MODES.chat).modelLabel,
       createdAt: Date.parse(row.created_at) || remoteUpdated || Date.now(),
@@ -4012,5 +4080,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5adaf718b9bafdd',t:'MTc5NDczOTcyNQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5adaf718b9bafdd',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5adbcee591570b5',t:'MTc5NDc0MDI3Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5adbcee591570b5',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

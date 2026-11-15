@@ -1,15 +1,28 @@
-"""API-key rotation, secret redaction and request authentication."""
-
+import base64
+import hashlib
+import json
+import logging
 import os
 import re
 import secrets
 import time
-from typing import Dict, List
+from typing import Dict, List, Optional
 
+import httpx
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
-from core.config import APP_TOKEN, KEY_COOLDOWN_SECONDS, MAX_API_KEYS, OPEN_PATHS
+from core.config import (
+    APP_TOKEN,
+    KEY_COOLDOWN_SECONDS,
+    MAX_API_KEYS,
+    OPEN_PATHS,
+    SUPABASE_ANON_KEY,
+    SUPABASE_URL,
+)
 from core.http import error_response
+
+logger = logging.getLogger("rexwork")
 
 
 class KeyManager:
@@ -94,73 +107,218 @@ def scrub(text, limit: int = 300) -> str:
     return " ".join(cleaned.split())[:limit]
 
 
-# --- App-token guard ----------------------------------------------------
+# --- Request authentication (APP_TOKEN or Supabase JWT) -----------------
 
-def _allowed_origins() -> List[str]:
-    raw = os.getenv("ALLOWED_ORIGINS") or (
-        "https://rexworks-backend.vercel.app,"
-        "https://rexworks.vercel.app,"
-        "http://localhost:8000,"
-        "http://127.0.0.1:8000,"
-        "http://localhost:3000,"
-        "http://127.0.0.1:3000"
+LOGIN_CACHE_SECONDS = 300
+LOGIN_REJECT_SECONDS = 30
+LOGIN_CACHE_LIMIT = 2000
+MAX_LOGIN_TOKEN_CHARS = 8192
+
+LOGIN_TOKEN_PATTERN = re.compile(
+    r"[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+"
+)
+LOGIN_KEY_PATTERN = re.compile(r"[A-Za-z0-9._\-]{20,512}")
+
+accepted_logins: Dict[str, float] = {}
+rejected_logins: Dict[str, float] = {}
+
+
+def _is_open_path(path: str) -> bool:
+    clean = path.rstrip("/") or "/"
+
+    return (
+        not clean.startswith("/api/")
+        or clean.endswith("/health")
+        or clean in OPEN_PATHS
     )
 
-    return [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
 
-
-def _origin_allowed(request: Request) -> bool:
-    """Origin allow-list used when no APP_TOKEN is configured.
-
-    Requests without an Origin header (curl, server-to-server, same-origin
-    navigations) are allowed so the API stays usable from the CLI.
-    """
-    origin = (request.headers.get("origin") or "").rstrip("/")
-
-    if not origin:
+def open_request(request: Request) -> bool:
+    if request.method == "OPTIONS":
         return True
 
-    if origin in _allowed_origins():
-        return True
+    path = request.scope.get("path", "") or request.url.path
+    root = request.scope.get("root_path", "")
 
-    # Vercel preview deployments of this project.
-    if origin.endswith(".vercel.app"):
-        return True
+    if root and path.startswith(root) and not _is_open_path(path[len(root):]):
+        return False
 
-    # Any localhost / 127.0.0.1 port during development.
-    if re.match(r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$", origin):
-        return True
+    return _is_open_path(path)
 
-    return False
+
+def login_token(request: Request) -> str:
+    scheme, _, value = request.headers.get("authorization", "").partition(" ")
+
+    if scheme.lower() != "bearer":
+        return ""
+
+    return value.strip()
+
+
+def token_expiry(token: str) -> Optional[float]:
+    if (
+        len(token) > MAX_LOGIN_TOKEN_CHARS
+        or not LOGIN_TOKEN_PATTERN.fullmatch(token)
+    ):
+        return None
+
+    payload = token.split(".")[1]
+
+    try:
+        claims = json.loads(
+            base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
+        )
+        expiry = float(claims["exp"])
+    except (ValueError, KeyError, TypeError):
+        return None
+
+    if not 0 < expiry < 1e12:
+        return None
+
+    return expiry
+
+
+def _remember_login(cache: Dict[str, float], digest: str, until: float) -> None:
+    if len(cache) >= LOGIN_CACHE_LIMIT:
+        now = time.time()
+
+        for key in [k for k, v in cache.items() if v <= now]:
+            del cache[key]
+
+        if len(cache) >= LOGIN_CACHE_LIMIT:
+            cache.clear()
+
+    cache[digest] = until
+
+
+def _login_required() -> JSONResponse:
+    return error_response(
+        401,
+        "LOGIN_REQUIRED",
+        "You are not logged in. Reload the page and log in again.",
+    )
+
+
+def _login_expired() -> JSONResponse:
+    return error_response(
+        401,
+        "LOGIN_EXPIRED",
+        "Your login was not accepted or has expired. Reload the page and log in again.",
+    )
+
+
+def _login_unavailable() -> JSONResponse:
+    return error_response(
+        503,
+        "AUTH_UNAVAILABLE",
+        "Could not check your login right now. Try again in a moment.",
+    )
+
+
+async def check_login(request: Request, token: str) -> Optional[JSONResponse]:
+    expiry = token_expiry(token) if token else None
+
+    if expiry is None:
+        return _login_required()
+
+    now = time.time()
+
+    if expiry <= now:
+        return _login_expired()
+
+    digest = hashlib.sha256(token.encode()).hexdigest()
+
+    if accepted_logins.get(digest, 0) > now:
+        return None
+
+    if rejected_logins.get(digest, 0) > now:
+        return _login_expired()
+
+    apikey = SUPABASE_ANON_KEY or request.headers.get("apikey", "").strip()
+
+    if not SUPABASE_URL or not LOGIN_KEY_PATTERN.fullmatch(apikey):
+        return error_response(
+            503,
+            "AUTH_NOT_CONFIGURED",
+            "Supabase authentication is not configured on this server.",
+        )
+
+    auth_user_url = f"{SUPABASE_URL.rstrip('/')}/auth/v1/user"
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+            response = await client.get(
+                auth_user_url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": apikey,
+                },
+            )
+    except httpx.HTTPError as error:
+        logger.warning("login check failed: %s", error.__class__.__name__)
+        return _login_unavailable()
+
+    try:
+        body = response.json()
+    except ValueError:
+        body = None
+
+    if not isinstance(body, dict):
+        body = {}
+
+    user = body.get("user") if isinstance(body.get("user"), dict) else body
+
+    if response.status_code == 200 and isinstance(user.get("id"), str) and user["id"]:
+        _remember_login(
+            accepted_logins,
+            digest,
+            min(now + LOGIN_CACHE_SECONDS, expiry),
+        )
+        return None
+
+    if response.status_code in (401, 403):
+        if "error_code" in body or "msg" in body:
+            _remember_login(
+                rejected_logins,
+                digest,
+                now + LOGIN_REJECT_SECONDS,
+            )
+            return _login_expired()
+
+        logger.warning("login service rejected the Supabase key")
+        return error_response(
+            401,
+            "AUTH_KEY_REJECTED",
+            "The login service did not accept this app's key.",
+        )
+
+    logger.warning("login check answered HTTP %s", response.status_code)
+    return _login_unavailable()
 
 
 async def token_guard(request: Request, call_next):
-    path = request.url.path.rstrip("/") or "/"
-
-    if (
-        request.method == "OPTIONS"
-        or not path.startswith("/api/")
-        or path.endswith("/health")
-        or path in OPEN_PATHS
-    ):
+    if open_request(request):
         return await call_next(request)
 
-    if not APP_TOKEN:
-        # No shared secret configured: fall back to an origin allow-list so
-        # the chat still works while random third-party sites cannot use the
-        # API from a browser.
-        if not _origin_allowed(request):
-            return error_response(
-                403,
-                "ORIGIN_NOT_ALLOWED",
-                "This origin is not allowed to use the API.",
-            )
+    supplied = request.headers.get("x-app-token", "").strip()
 
-        return await call_next(request)
+    if supplied:
+        if APP_TOKEN and secrets.compare_digest(supplied.encode(), APP_TOKEN.encode()):
+            return await call_next(request)
 
-    supplied = request.headers.get("x-app-token", "")
-
-    if not secrets.compare_digest(supplied.encode(), APP_TOKEN.encode()):
         return error_response(401, "UNAUTHORIZED", "Invalid or missing token.")
 
-    return await call_next(request)
+    bearer = login_token(request)
+
+    if bearer:
+        failure = await check_login(request, bearer)
+
+        if failure is not None:
+            return failure
+
+        return await call_next(request)
+
+    if APP_TOKEN:
+        return error_response(401, "UNAUTHORIZED", "Invalid or missing token.")
+
+    return _login_required()

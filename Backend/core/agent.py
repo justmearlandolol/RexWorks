@@ -1,7 +1,6 @@
-"""Autonomous coding agent (sandboxed bash tool loop)."""
-
 import json
 import logging
+from contextlib import AsyncExitStack
 from typing import Any, Dict, List
 
 from core.chat import failure_notice
@@ -84,11 +83,12 @@ def make_agent_stream(mode: str, messages: List[Dict[str, Any]], extra: Dict[str
     async def generator():
         shown = False
         answered = False
+        box = None
 
         try:
             convo = build_messages(mode, messages, MODES)
 
-            async with _create_sandbox() as box:
+            async with AsyncExitStack() as stack:
                 for step in range(AGENT_MAX_STEPS):
                     final_step = step == AGENT_MAX_STEPS - 1
 
@@ -143,7 +143,20 @@ def make_agent_stream(mode: str, messages: List[Dict[str, Any]], extra: Dict[str
                         yield sse({"delta": f"[bash: {label}]\n"})
                         shown = True
 
-                        output = await run_bash(box, command) if command else "invalid_arguments"
+                        if not command:
+                            output = "invalid_arguments"
+                        else:
+                            if box is None:
+                                try:
+                                    box = await stack.enter_async_context(_create_sandbox())
+                                except Exception as error:
+                                    logger.warning("sandbox unavailable: %s", error.__class__.__name__)
+                                    output = f"sandbox_unavailable:{error.__class__.__name__}"
+                                else:
+                                    output = await run_bash(box, command)
+                            else:
+                                output = await run_bash(box, command)
+
                         output = redact_secrets(output)
 
                         yield sse({"delta": f"```\n{output[:AGENT_PREVIEW_CHARS]}\n```\n\n"})

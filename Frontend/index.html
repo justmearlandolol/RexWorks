@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="rexwork-api" content="https://rexworks-backend.vercel.app/"/>
-<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" href="assets/rexworks-logo.png" />
 <meta name="rexwork-token" content=""/>
 <meta name="color-scheme" content="dark light" />
 <meta name="supabase-url" content="https://fdlklzveockeibcmijmz.supabase.co" />
@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="greet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 
@@ -786,6 +787,99 @@ textarea.input{ resize:vertical; min-height:90px; }
   #workspace-panel{ display:none; }
 }
 
+
+:root{ --rw-logo:url("data:image/png;base64,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"); }
+.rw-logo-tile{
+  background-color:#05070b;
+  background-image:var(--rw-logo);
+  background-size:76%;
+  background-position:center;
+  background-repeat:no-repeat;
+  border-radius:7px;
+  box-shadow:0 0 0 1px var(--border), 0 0 20px rgba(255,176,0,.16);
+}
+.brand .logo{
+  width:32px; height:32px; border-radius:8px; font-size:0; color:transparent;
+  background-color:#05070b;
+  background-image:var(--rw-logo); background-size:74%; background-position:center; background-repeat:no-repeat;
+  box-shadow:0 0 0 1px var(--border), 0 0 18px rgba(255,176,0,.2);
+}
+.msg.assistant .role-ico{
+  background-color:#05070b; background-image:var(--rw-logo);
+  background-size:72%; background-position:center; background-repeat:no-repeat;
+  color:transparent; box-shadow:0 0 0 1px var(--border);
+}
+.chat-inner{ display:flex; flex-direction:column; min-height:100%; }
+.welcome{ width:100%; max-width:760px; margin:auto; padding:28px 22px 24px; text-align:center; }
+.welcome-tag{
+  font-family:var(--font-pixel); font-size:8px; letter-spacing:1.6px; line-height:1.9;
+  color:var(--faint); margin-top:16px; opacity:.9;
+}
+.suggest{ display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-top:30px; }
+.suggest button{
+  border:1px solid var(--border); border-radius:999px; padding:9px 16px;
+  background:var(--surface); font-family:var(--font-mono); font-size:12.5px;
+  letter-spacing:.3px; color:var(--text-soft); transition:border-color .15s ease, background .15s ease, color .15s ease;
+}
+.suggest button:hover{ border-color:var(--muted); background:var(--surface-2); color:var(--text); }
+#composer{ padding:10px 16px 18px; }
+#composer-inner{ max-width:768px; margin:0 auto; }
+.composer-box{
+  border:1px solid var(--border); border-radius:18px; background:var(--surface);
+  box-shadow:0 16px 48px rgba(0,0,0,.45);
+  transition:border-color .16s ease, box-shadow .16s ease;
+}
+.composer-box:focus-within{ border-color:#3b455b; box-shadow:0 18px 54px rgba(0,0,0,.55); }
+#composer-input{
+  width:100%; background:transparent; border:none; outline:none; resize:none;
+  padding:18px 18px 2px; min-height:56px; max-height:240px;
+  font-family:var(--font-mono); font-size:15.5px; line-height:1.6; color:var(--text);
+}
+#composer-input::placeholder{ color:var(--faint); }
+.composer-foot{ display:flex; align-items:center; gap:6px; padding:6px 12px 12px; }
+.composer-hint{
+  flex:1; min-width:0; font-family:var(--font-mono); font-size:10.5px; letter-spacing:.2px;
+  color:var(--faint); opacity:.85; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.composer-add-btn{
+  width:32px; height:32px; border-radius:50%; background:transparent;
+  border:1px solid var(--border); color:var(--text-soft);
+  transition:background .15s,border-color .15s,color .15s;
+}
+.composer-add-btn:hover,.composer-add-btn[aria-expanded="true"]{
+  background:var(--surface-2); border-color:var(--muted); color:var(--text); transform:none;
+}
+.composer-add-btn svg{ width:16px; height:16px; }
+.composer-icon-btn{
+  width:32px; height:32px; border-radius:50%; display:grid; place-items:center;
+  color:var(--muted); border:1px solid transparent; transition:background .15s,color .15s;
+}
+.composer-icon-btn:hover{ background:var(--surface-2); color:var(--text); }
+.composer-icon-btn svg{ width:17px; height:17px; }
+.agent-model-btn{
+  background:transparent; border-color:transparent; border-radius:999px;
+  padding:6px 8px; font-size:12.5px; color:var(--text-soft);
+}
+.agent-model-btn:hover{ background:var(--surface-2); border-color:var(--border); }
+.agent-model-menu{ left:auto; right:0; }
+.btn-send{
+  width:34px; height:34px; padding:0; border-radius:50%; display:grid; place-items:center;
+  background:var(--brand); color:#141005; border:none;
+}
+.btn-send:hover{ filter:brightness(1.08); }
+.btn-send svg{ width:17px; height:17px; }
+.btn-send #send-label{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden;
+  clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+.btn-send.btn-cancel-active{ background:var(--red); color:#fff; }
+.btn-send.btn-cancel-active svg{ display:none; }
+.btn-send.btn-cancel-active::after{ content:""; width:10px; height:10px; border-radius:2px; background:#fff; }
+@media (max-width:560px){
+  .composer-hint{ display:none; }
+  #composer{ padding:8px 8px 12px; }
+  #composer-input{ font-size:15px; padding:16px 14px 2px; }
+}
 </style>
 </head>
 <body>
@@ -793,7 +887,7 @@ textarea.input{ resize:vertical; min-height:90px; }
   
   <aside id="sidebar" aria-label="Sidebar">
     <div class="brand">
-      <div class="logo">R</div>
+      <div class="logo rw-logo-tile" aria-hidden="true"></div>
       <div>
         <div class="word">REXWORK</div>
         <div class="sub">ONE WORKSPACE. EVERY WAY TO THINK.</div>
@@ -839,21 +933,29 @@ textarea.input{ resize:vertical; min-height:90px; }
       <button class="tb-btn" id="tb-theme" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></button>
     </header>
 
-    <div id="view">
+    <div id="view" class="workspace-hidden">
       <div id="chat-col">
         <div class="msg-scroll" id="msg-scroll">
           <div class="chat-inner" id="chat-inner"></div>
         </div>
       </div>
       <div id="canvas-col" class="hidden"></div>
-      <aside id="workspace-panel" aria-label="Workspace files"></aside>
+      <aside id="workspace-panel" class="hidden" aria-label="Workspace files"></aside>
     </div>
 
     <footer id="composer">
       <div id="composer-inner">
         <div id="attach-row" class="attach-row"></div>
         <div class="composer-box">
-          <div class="composer-tools">
+          <textarea id="composer-input" rows="1" placeholder="ASK REXWORK ANYTHING..." aria-label="Message RexWork"></textarea>
+          <div class="composer-foot">
+            <button type="button" class="icon-btn composer-add-btn" id="btn-tools" title="Add tools" aria-label="Open attachment and assistant tools" aria-haspopup="menu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button type="button" class="composer-icon-btn" id="btn-voice" title="Voice input" aria-label="Voice input">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 19v3"/></svg>
+            </button>
+            <div class="composer-hint" id="composer-hint">ENTER TO SEND · SHIFT+ENTER FOR NEW LINE</div>
             <div class="agent-model-picker" id="agent-model-picker">
               <button type="button" class="agent-model-btn" id="agent-model-btn" aria-haspopup="true" aria-expanded="false" title="Switch AI Agent">
                 <span class="agent-icon" id="agent-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18.5h10.5a4.5 4.5 0 0 0 .6-8.96A6.5 6.5 0 0 0 5.7 11.1 3.7 3.7 0 0 0 7 18.5Z"/><path d="M8.5 13h7M10 16h4"/></svg></span>
@@ -879,16 +981,9 @@ textarea.input{ resize:vertical; min-height:90px; }
                 </button>
               </div>
             </div>
-            <button type="button" class="icon-btn composer-add-btn" id="btn-tools" title="Add tools" aria-label="Open attachment and assistant tools" aria-haspopup="menu" aria-expanded="false">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
-            </button>
-          </div>
-          <textarea id="composer-input" rows="1" placeholder="ASK REXWORK ANYTHING..." aria-label="Message RexWork"></textarea>
-          <div class="composer-foot">
-            <div class="composer-hint" id="composer-hint">ENTER TO SEND · SHIFT+ENTER FOR NEW LINE</div>
             <button class="btn-send" id="btn-send" aria-label="Send message">
               <span id="send-label">SEND</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
             </button>
           </div>
         </div>
@@ -1040,7 +1135,7 @@ function timeLabel(ts){
 }
 
 
-function saveConversations(){ lsSet(LS.conv, state.conversations); }
+function saveConversations(){ lsSet(LS.conv, state.conversations); cloudQueueSync(); }
 function saveProjects(){ lsSet(LS.projects, state.projects); }
 function saveMemory(){ lsSet(LS.memory, state.memory); }
 function saveCustom(){ lsSet(LS.custom, state.custom); }
@@ -1528,7 +1623,7 @@ function renderOnboarding(){
   inner.innerHTML = `
     <div class="panel onboarding-panel" style="max-width:540px; width:100%; margin:16px auto; padding:0 8px;">
       <div style="text-align:center; margin-bottom:20px;">
-        <div style="width:48px; height:48px; background:var(--brand); color:#141005; font-family:var(--font-pixel); font-size:22px; font-weight:bold; display:grid; place-items:center; border-radius:6px; margin:0 auto 12px; box-shadow:0 0 24px rgba(255,176,0,.25);">R</div>
+        <div class="rw-logo-tile" style="width:52px; height:52px; margin:0 auto 12px;"></div>
         <h2 class="pixel" style="font-size:14px; margin-bottom:6px; letter-spacing:1px;">SETUP YOUR PROFILE</h2>
         <p class="lede" style="font-size:12px; color:var(--muted); line-height:1.4;">Prepare your account before starting. RexWork AI will adapt to you personally.</p>
       </div>
@@ -1936,7 +2031,8 @@ function renderWorkspacePanel(){
   const panel = $('#workspace-panel');
   const view = $('#view');
   if(!panel || !view) return;
-  const isVisible = state.view === 'chat';
+  const active = currentConversation();
+  const isVisible = state.view === 'chat' && !!active && Array.isArray(active.messages) && active.messages.length > 0;
   panel.classList.toggle('hidden', !isVisible);
   view.classList.toggle('workspace-hidden', !isVisible);
   if(!isVisible){
@@ -1960,17 +2056,23 @@ function renderChat(){
   const wsHTML = '';
   if(!c){
     inner.innerHTML = wsHTML + welcomeHTML();
+    mountGreeting();
     return;
   }
   inner.innerHTML = wsHTML + c.messages.map((m,i)=>messageHTML(m,i,c)).join('');
   bindMessageActions();
   scrollBottom();
 }
+function mountGreeting(){
+  if(!window.RexWorkGreet || typeof window.RexWorkGreet.render !== 'function') return;
+  const node = document.querySelector('#chat-inner [data-rexwork-greet]');
+  if(node) window.RexWorkGreet.render(node);
+}
 function welcomeHTML(){
   return `
     <div class="welcome">
-      <div class="mark pixel">WELCOME TO REXWORK</div>
-      <div class="tag">YOUR AI WORKSPACE FOR THINKING,<br/>CREATING, LEARNING AND BUILDING.</div>
+      <div data-rexwork-greet data-name="${esc(getUserDisplayName())}"></div>
+      <div class="welcome-tag">YOUR AI WORKSPACE FOR THINKING, CREATING, LEARNING AND BUILDING.</div>
       <div class="suggest">
         ${SUGGESTIONS.map(s=>`<button data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}
       </div>
@@ -1990,7 +2092,7 @@ function messageHTML(m, i, c){
   if(isUser){
     const chips = attachChips(m);
     return `<div class="msg user" data-i="${i}">
-      <div class="role-ico">A</div>
+      <div class="role-ico">${esc((getUserDisplayName()[0] || 'U').toUpperCase())}</div>
       <div class="body">
         <div class="who">${esc(getUserDisplayName().toUpperCase())}</div>
         ${chips}
@@ -2050,7 +2152,7 @@ function messageHTML(m, i, c){
   const cancelBarHTML = isStreamingMsg ? '<div class="stream-cancel-row"><button type="button" class="btn-stream-cancel" data-cancel-stream><span class="sc-ico">⏹</span> CANCEL MESSAGE</button></div>' : '';
 
   return `<div class="msg assistant" data-i="${i}">
-    <div class="role-ico">R</div>
+    <div class="role-ico" aria-hidden="true"></div>
     <div class="body">
       <div class="who">${esc(m.model && m.model.includes('Arlon') ? 'ARLON-POWERED 2' : (state.mode==='coding' ? 'ARLON-POWERED 2' : (state.mode==='vision' ? 'BRAX VISION' : 'BRAX')))} ${demoBadge}${modelBadge}</div>
       ${m.sources ? renderSources(m.sources, m.demo) : ''}
@@ -2807,12 +2909,13 @@ function renderSettings(){
     const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rexwork_conversations.json'; a.click(); URL.revokeObjectURL(a.href); toast('CONVERSATIONS EXPORTED');
   });
   $('#st-clear').addEventListener('click',()=>{
-    confirmModal('CLEAR ALL LOCAL DATA? This removes conversations, projects, memory and settings.', ()=>{
+    confirmModal('CLEAR ALL DATA? This removes conversations from your account plus local projects, memory and settings.', ()=>{
+      cloudClearAll();
       Object.values(LS).forEach(lsDel);
       state.conversations=[]; state.projects=[]; state.memory={on:true,items:[]}; state.custom={about:'',respond:''};
       state.currentId=null; state.view='chat';
       saveConversations(); saveProjects(); saveMemory(); saveCustom();
-      renderAll(); toast('LOCAL DATA CLEARED');
+      renderAll(); toast('ALL DATA CLEARED');
     });
   });
   $('#st-logout').addEventListener('click',()=>{
@@ -3013,6 +3116,7 @@ function deleteChat(c){
   confirmModal(`DELETE "${esc(c.title)}"? This cannot be undone.`, ()=>{
     state.conversations=state.conversations.filter(x=>x.id!==c.id);
     if(state.currentId===c.id) state.currentId=null;
+    cloudDeleteConversation(c.id);
     saveConversations(); renderAll(); toast('CHAT DELETED');
   });
 }
@@ -3251,6 +3355,8 @@ function bindEvents(){
 
   const composerToolsButton = $('#btn-tools');
   if(composerToolsButton) composerToolsButton.addEventListener('click',toggleToolsPop);
+  const composerVoiceButton = $('#btn-voice');
+  if(composerVoiceButton) composerVoiceButton.addEventListener('click',()=>toggleVoice());
   $('#tools-pop').addEventListener('click',e=>{
     const button = e.target.closest('[data-composer-tool]');
     if(!button) return;
@@ -3518,6 +3624,218 @@ async function persistUserProfile(auth, avatarFile){
   return state.auth;
 }
 
+
+const CLOUD_TOMB_KEY = 'rexwork_deleted_chats';
+const cloud = { ready:false, userId:null, timer:null, busy:false, sig:new Map() };
+
+function cloudTombstones(){
+  const list = lsGet(CLOUD_TOMB_KEY, []);
+  return Array.isArray(list) ? list.map(String) : [];
+}
+function cloudMarkDeleted(id){
+  const list = cloudTombstones().filter(x=>x !== String(id));
+  list.push(String(id));
+  lsSet(CLOUD_TOMB_KEY, list.slice(-400));
+}
+function cloudSignature(c){
+  const msgs = Array.isArray(c.messages) ? c.messages : [];
+  const last = msgs[msgs.length-1] || {};
+  return [c.updatedAt||0, msgs.length, String(last.content||'').length, String(c.title||''), c.pinned?1:0, c.archived?1:0, c.projectId||'', c.mode||''].join('|');
+}
+function cloudQueueSync(){
+  if(!cloud.ready || !cloud.userId) return;
+  clearTimeout(cloud.timer);
+  cloud.timer = setTimeout(()=>{ cloudPushDirty(); }, 650);
+}
+function cloudAttachments(list){
+  if(!Array.isArray(list)) return [];
+  return list.map(a=>({
+    kind:a.kind || 'file',
+    name:a.name || '',
+    ext:a.ext || '',
+    size:a.size || 0,
+    readable:!!a.readable,
+    text:(typeof a.text === 'string' && a.text) ? a.text.slice(0, 20000) : null,
+    dataUrl:(typeof a.dataUrl === 'string' && a.dataUrl.length < 60000) ? a.dataUrl : null
+  }));
+}
+async function cloudPushConversation(c){
+  const client = getSupabaseClient();
+  if(!client || !cloud.userId || !c || !c.id) return false;
+  const createdAt = new Date(c.createdAt || c.updatedAt || Date.now());
+  const updatedAt = new Date(c.updatedAt || c.createdAt || Date.now());
+  const row = {
+    user_id: cloud.userId,
+    client_id: String(c.id),
+    title: String(c.title || 'NEW CHAT').slice(0, 200),
+    mode: MODES[c.mode] ? c.mode : 'chat',
+    model: c.model || null,
+    project_id: c.projectId || null,
+    pinned: !!c.pinned,
+    archived: !!c.archived,
+    deleted_at: null,
+    created_at: createdAt.toISOString(),
+    updated_at: updatedAt.toISOString()
+  };
+  const { data, error } = await client.from('chats').upsert(row, { onConflict:'user_id,client_id' }).select('id').maybeSingle();
+  if(error || !data){
+    if(error) console.warn('RexWork cloud chat:', error.message);
+    return false;
+  }
+  const chatId = data.id;
+  const rows = (Array.isArray(c.messages) ? c.messages : []).map((m, index)=>({
+    chat_id: chatId,
+    user_id: cloud.userId,
+    client_id: 'm' + index + '_' + String(m.ts || 0),
+    role: (m.role === 'user' || m.role === 'assistant') ? m.role : 'assistant',
+    content: String(m.content == null ? '' : m.content),
+    model: m.model || null,
+    seq: index,
+    demo: !!m.demo,
+    attachments: cloudAttachments(m.attachments),
+    created_at: new Date(m.ts || c.createdAt || Date.now()).toISOString()
+  }));
+  if(rows.length){
+    const { error: msgError } = await client.from('messages').upsert(rows, { onConflict:'chat_id,client_id' });
+    if(msgError) console.warn('RexWork cloud messages:', msgError.message);
+  }
+  let purge = client.from('messages').delete().eq('chat_id', chatId);
+  if(rows.length) purge = purge.not('client_id', 'in', '(' + rows.map(r=>r.client_id).join(',') + ')');
+  const { error: purgeError } = await purge;
+  if(purgeError) console.warn('RexWork cloud purge:', purgeError.message);
+  return true;
+}
+async function cloudPushDirty(){
+  if(!cloud.ready || !cloud.userId || cloud.busy) return;
+  cloud.busy = true;
+  try{
+    const tombs = cloudTombstones();
+    const snapshot = state.conversations.slice();
+    for(const c of snapshot){
+      const key = String(c.id);
+      if(tombs.indexOf(key) !== -1) continue;
+      const sig = cloudSignature(c);
+      if(cloud.sig.get(key) === sig) continue;
+      const ok = await cloudPushConversation(c);
+      if(ok) cloud.sig.set(key, sig);
+    }
+  }catch(error){
+    console.warn('RexWork cloud sync:', error && error.message);
+  }finally{
+    cloud.busy = false;
+  }
+}
+async function cloudDeleteConversation(id){
+  const key = String(id);
+  cloudMarkDeleted(key);
+  cloud.sig.delete(key);
+  const client = getSupabaseClient();
+  if(!client || !cloud.userId) return;
+  const { error } = await client.from('chats')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('user_id', cloud.userId)
+    .eq('client_id', key);
+  if(error) console.warn('RexWork cloud delete:', error.message);
+}
+async function cloudClearAll(){
+  state.conversations.map(c=>String(c.id)).forEach(id=>{
+    cloudMarkDeleted(id);
+    cloud.sig.delete(id);
+  });
+  const client = getSupabaseClient();
+  if(!client || !cloud.userId) return;
+  const { error } = await client.from('chats')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('user_id', cloud.userId);
+  if(error) console.warn('RexWork cloud clear:', error.message);
+}
+async function cloudPullConversations(){
+  const client = getSupabaseClient();
+  if(!client || !cloud.userId) return false;
+  const { data: chatRows, error } = await client.from('chats')
+    .select('id, client_id, title, mode, model, project_id, pinned, archived, created_at, updated_at')
+    .eq('user_id', cloud.userId)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending:false })
+    .limit(400);
+  if(error || !Array.isArray(chatRows)){
+    if(error) console.warn('RexWork cloud pull:', error.message);
+    return false;
+  }
+  let msgRows = [];
+  const ids = chatRows.map(r=>r.id);
+  if(ids.length){
+    const { data, error: msgError } = await client.from('messages')
+      .select('chat_id, role, content, model, demo, attachments, seq, created_at')
+      .in('chat_id', ids)
+      .order('seq', { ascending:true })
+      .limit(20000);
+    if(msgError) console.warn('RexWork cloud messages pull:', msgError.message);
+    msgRows = Array.isArray(data) ? data : [];
+  }
+  const grouped = new Map();
+  msgRows.forEach(m=>{
+    if(!grouped.has(m.chat_id)) grouped.set(m.chat_id, []);
+    grouped.get(m.chat_id).push(m);
+  });
+  const tombs = cloudTombstones();
+  const localById = new Map(state.conversations.map(c=>[String(c.id), c]));
+  const adopted = [];
+  let changed = false;
+  chatRows.forEach(row=>{
+    const key = String(row.client_id || row.id);
+    if(tombs.indexOf(key) !== -1) return;
+    const remoteUpdated = Date.parse(row.updated_at) || 0;
+    const local = localById.get(key);
+    if(local && (local.updatedAt || 0) >= remoteUpdated) return;
+    const messages = (grouped.get(row.id) || []).slice().sort((a,b)=>(a.seq||0)-(b.seq||0)).map(m=>{
+      const item = { role:m.role, content:m.content || '', ts: Date.parse(m.created_at) || Date.now() };
+      if(m.model) item.model = m.model;
+      if(m.demo) item.demo = true;
+      if(Array.isArray(m.attachments) && m.attachments.length) item.attachments = m.attachments;
+      return item;
+    });
+    const conversation = {
+      id: key,
+      title: row.title || 'NEW CHAT',
+      mode: MODES[row.mode] ? row.mode : 'chat',
+      model: row.model || (MODES[row.mode] || MODES.chat).modelLabel,
+      createdAt: Date.parse(row.created_at) || remoteUpdated || Date.now(),
+      updatedAt: remoteUpdated || Date.now(),
+      pinned: !!row.pinned,
+      archived: !!row.archived,
+      projectId: row.project_id || null,
+      messages
+    };
+    if(local) Object.assign(local, conversation);
+    else state.conversations.push(conversation);
+    adopted.push(key);
+    changed = true;
+  });
+  if(changed){
+    state.conversations.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    lsSet(LS.conv, state.conversations);
+    adopted.forEach(key=>{
+      const conv = state.conversations.find(c=>String(c.id) === key);
+      if(conv) cloud.sig.set(key, cloudSignature(conv));
+    });
+  }
+  return changed;
+}
+async function cloudStart(){
+  const client = getSupabaseClient();
+  const id = (state.auth || {}).id || (state.auth || {}).userId;
+  if(!client || !id) return false;
+  cloud.userId = String(id);
+  cloud.ready = true;
+  try{
+    await cloudPullConversations();
+  }catch(error){
+    console.warn('RexWork cloud start:', error && error.message);
+  }
+  return true;
+}
+
 async function boot(){
   const auth = await hydrateAuthFromSupabase();
 
@@ -3538,6 +3856,7 @@ async function boot(){
   // verified Supabase session above.
   state.auth = Object.assign({}, savedProf || {}, state.auth);
   delete state.auth.demo;
+  await cloudStart();
   await syncProfileFromSupabase();
   const wasOnboarded = lsGet('rexwork_onboarded', false) || Boolean(state.auth && state.auth.onboarded) || Boolean(savedProf && savedProf.onboarded);
 
@@ -3571,6 +3890,7 @@ async function boot(){
   bindEvents();
   renderAll();
   applyAuthToUI();
+  cloudQueueSync();
   autoGrow();
   await checkBackend();
   renderModePopover();
@@ -3605,5 +3925,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5ad4a0c3c4b696d',t:'MTc5NDczNTU3MQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5ad4a0c3c4b696d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

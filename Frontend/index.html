@@ -1060,6 +1060,7 @@ let state = {
   sidebarOpen:false,
   workspaceFiles:[],
   workspaceFolders:[],
+  draftWorkspace:{ files:[], folders:[] },
   activeFileId:null
 };
 
@@ -1856,9 +1857,67 @@ function workspaceFolderPaths(){
   });
   return Array.from(paths).sort((a,b)=>a.localeCompare(b));
 }
+function activeWorkspaceBucket(){
+  const conversation = currentConversation();
+  if(conversation){
+    if(!conversation.workspace || typeof conversation.workspace !== 'object') conversation.workspace = {};
+    if(!Array.isArray(conversation.workspace.files)) conversation.workspace.files = [];
+    if(!Array.isArray(conversation.workspace.folders)) conversation.workspace.folders = [];
+    return conversation.workspace;
+  }
+  if(!state.draftWorkspace || typeof state.draftWorkspace !== 'object') state.draftWorkspace = { files:[], folders:[] };
+  if(!Array.isArray(state.draftWorkspace.files)) state.draftWorkspace.files = [];
+  if(!Array.isArray(state.draftWorkspace.folders)) state.draftWorkspace.folders = [];
+  return state.draftWorkspace;
+}
+function resetDraftWorkspace(){ state.draftWorkspace = { files:[], folders:[] }; }
+function syncActiveWorkspace(){
+  const bucket = activeWorkspaceBucket();
+  state.workspaceFiles = bucket.files;
+  state.workspaceFolders = bucket.folders;
+  const keep = state.workspaceFiles.find(file=>file && file.id === state.activeFileId);
+  state.activeFileId = keep ? keep.id : (state.workspaceFiles[0] ? state.workspaceFiles[0].id : null);
+}
+function adoptDraftWorkspace(conversation){
+  if(!conversation) return;
+  const draft = state.draftWorkspace || {};
+  const files = Array.isArray(draft.files) ? draft.files : [];
+  const folders = Array.isArray(draft.folders) ? draft.folders : [];
+  if(!files.length && !folders.length) return;
+  if(!conversation.workspace || typeof conversation.workspace !== 'object') conversation.workspace = { files:[], folders:[] };
+  conversation.workspace.files = files;
+  conversation.workspace.folders = folders;
+}
+function migrateLegacyWorkspace(){
+  const legacyFiles = lsGet(LS.workspaceFiles, null);
+  const legacyFolders = lsGet(LS.workspaceFolders, null);
+  const files = Array.isArray(legacyFiles) ? legacyFiles.filter(file=>file && !['f_main','f_app'].includes(file.id)) : [];
+  const folders = Array.isArray(legacyFolders) ? legacyFolders.map(normalizeWorkspacePath).filter(Boolean) : [];
+  if(files.length || folders.length){
+    const target = state.conversations.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    if(!target){
+      state.draftWorkspace = { files, folders };
+    } else {
+      if(!target.workspace || typeof target.workspace !== 'object') target.workspace = { files:[], folders:[] };
+      if(!target.workspace.files || !target.workspace.files.length) target.workspace.files = files;
+      if(!target.workspace.folders || !target.workspace.folders.length) target.workspace.folders = folders;
+      saveConversations();
+    }
+  }
+  lsDel(LS.workspaceFiles);
+  lsDel(LS.workspaceFolders);
+}
 function saveWorkspace(){
-  lsSet(LS.workspaceFiles, state.workspaceFiles || []);
-  lsSet(LS.workspaceFolders, workspaceFolderPaths());
+  const bucket = activeWorkspaceBucket();
+  bucket.files = state.workspaceFiles || [];
+  bucket.folders = workspaceFolderPaths();
+  state.workspaceFolders = bucket.folders;
+  const conversation = currentConversation();
+  if(conversation){
+    conversation.updatedAt = now();
+    saveConversations();
+  }
+  renderWorkspacePanel();
 }
 function addWorkspaceFolder(path){
   const clean = normalizeWorkspacePath(path).replace(/\/$/, '');
@@ -2047,7 +2106,7 @@ function renderWorkspacePanel(){
   const folderRows = folders.map(folder=>`<div class="workspace-row folder" title="${esc(folder)}"><span class="workspace-row-icon">${workspaceIcon('folder')}</span><span class="workspace-row-name">${esc(folder)}</span></div>`).join('');
   const fileRows = files.map(file=>`<div class="workspace-row file" title="${esc(file.name)}"><span class="workspace-row-icon">${workspaceIcon('file')}</span><span class="workspace-row-name">${esc(file.name)}</span><button type="button" class="workspace-file-download" data-ws-download="${esc(file.id)}" aria-label="Download ${esc(file.name)}" title="Download ${esc(file.name)}">${workspaceIcon('download')}</button></div>`).join('');
   const empty = !folders.length && !files.length;
-  panel.innerHTML = `<div class="workspace-head"><div class="workspace-title">${workspaceIcon('workspace')}<span>Workspace</span></div><button type="button" id="ws-download-all" class="workspace-download-all" ${files.length ? '' : 'disabled'} aria-label="Download workspace as ZIP" title="Download workspace ZIP">${workspaceIcon('zip')}</button></div><div class="workspace-meta"><span>${fmtBytes(used)} / 128.0 MB</span><span>${files.length}/1.0K files</span></div><div class="workspace-meter"><span style="width:${percent}%"></span></div>${empty ? `<div class="workspace-empty"><svg viewBox="0 0 160 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="31" width="56" height="42" rx="4"/><path d="M16 42h56M31 20h26l8 11H23zM93 28h42l9 13v31H93z"/><path d="M104 55h28M104 65h17"/><path d="m48 83 8-10 8 10M110 84v-9"/></svg><p>All files that are created or uploaded in this session will be saved here.</p></div>` : `<div class="workspace-list">${folders.length ? `<div class="workspace-section-label">FOLDERS</div>${folderRows}` : ''}<div class="workspace-section-label">FILES</div>${fileRows}</div>`}`;
+  panel.innerHTML = `<div class="workspace-head"><div class="workspace-title">${workspaceIcon('workspace')}<span>Workspace</span></div><button type="button" id="ws-download-all" class="workspace-download-all" ${files.length ? '' : 'disabled'} aria-label="Download workspace as ZIP" title="Download workspace ZIP">${workspaceIcon('zip')}</button></div><div class="workspace-meta"><span>${fmtBytes(used)} / 128.0 MB</span><span>${files.length}/1.0K files</span></div><div class="workspace-meter"><span style="width:${percent}%"></span></div>${empty ? `<div class="workspace-empty"><svg viewBox="0 0 160 100" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="16" y="31" width="56" height="42" rx="4"/><path d="M16 42h56M31 20h26l8 11H23zM93 28h42l9 13v31H93z"/><path d="M104 55h28M104 65h17"/><path d="m48 83 8-10 8 10M110 84v-9"/></svg><p>Files created or uploaded in this chat will be saved here.</p></div>` : `<div class="workspace-list">${folders.length ? `<div class="workspace-section-label">FOLDERS</div>${folderRows}` : ''}<div class="workspace-section-label">FILES</div>${fileRows}</div>`}`;
 }
 
 function renderChat(){
@@ -2231,6 +2290,8 @@ async function sendMessage(){
   if(!currentConversation()){
     const title = makeTitle(text || (state.attachments[0]||{}).name || 'New chat');
     const c = { id:uid(), title, mode:state.mode, model:MODES[state.mode].modelLabel, createdAt:now(), updatedAt:now(), pinned:false, archived:false, projectId:null, messages:[] };
+    adoptDraftWorkspace(c);
+    resetDraftWorkspace();
     state.conversations.unshift(c);
     state.currentId = c.id;
     saveConversations();
@@ -3111,11 +3172,11 @@ function renameChat(c){
   $('#rn-save').addEventListener('click',()=>{ const v=($('#rn-name').value||'').trim(); if(v){ c.title=v; saveConversations(); closeModal(); renderAll(); toast('CONVERSATION RENAMED'); } });
 }
 function pinChat(c){ c.pinned=!c.pinned; saveConversations(); renderAll(); toast(c.pinned?'CHAT PINNED':'CHAT UNPINNED'); }
-function archiveChat(c){ c.archived=true; if(state.currentId===c.id){ state.currentId=null; } saveConversations(); renderAll(); toast('CHAT ARCHIVED'); }
+function archiveChat(c){ c.archived=true; if(state.currentId===c.id){ state.currentId=null; resetDraftWorkspace(); } saveConversations(); renderAll(); toast('CHAT ARCHIVED'); }
 function deleteChat(c){
   confirmModal(`DELETE "${esc(c.title)}"? This cannot be undone.`, ()=>{
     state.conversations=state.conversations.filter(x=>x.id!==c.id);
-    if(state.currentId===c.id) state.currentId=null;
+    if(state.currentId===c.id){ state.currentId=null; resetDraftWorkspace(); }
     cloudDeleteConversation(c.id);
     saveConversations(); renderAll(); toast('CHAT DELETED');
   });
@@ -3306,7 +3367,7 @@ function toggleSidebar(){
 function closeAllPopovers(){ const modePop=$('#mode-pop'); const toolsPop=$('#tools-pop'); const modeChip=$('#mode-chip'); const toolsButton=$('#btn-tools'); const agentMenu=$('#agent-model-menu'); const agentButton=$('#agent-model-btn'); if(modePop) modePop.classList.remove('open'); if(toolsPop) toolsPop.classList.remove('open'); if(agentMenu) agentMenu.classList.add('hidden'); if(modeChip) modeChip.setAttribute('aria-expanded','false'); if(toolsButton) toolsButton.setAttribute('aria-expanded','false'); if(agentButton) agentButton.setAttribute('aria-expanded','false'); }
 function closeComposerSubMenus(){ closeAllPopovers(); }
 
-function renderAll(){ renderTopbar(); renderSidebar(); renderView(); renderAttachments(); renderWorkspacePanel(); updateComposerState(); applyAuthToUI(); }
+function renderAll(){ syncActiveWorkspace(); renderTopbar(); renderSidebar(); renderView(); renderAttachments(); renderWorkspacePanel(); updateComposerState(); applyAuthToUI(); }
 
 function bindEvents(){
   
@@ -3467,6 +3528,7 @@ function bindEvents(){
 
 function newChat(){
   state.currentId=null; state.view='chat'; state.attachments=[];
+  resetDraftWorkspace();
   $('#composer-input').value=''; autoGrow();
   renderAll(); closeSidebar();
   setTimeout(()=>$('#composer-input').focus(),10);
@@ -3640,7 +3702,9 @@ function cloudMarkDeleted(id){
 function cloudSignature(c){
   const msgs = Array.isArray(c.messages) ? c.messages : [];
   const last = msgs[msgs.length-1] || {};
-  return [c.updatedAt||0, msgs.length, String(last.content||'').length, String(c.title||''), c.pinned?1:0, c.archived?1:0, c.projectId||'', c.mode||''].join('|');
+  const files = (c.workspace && Array.isArray(c.workspace.files)) ? c.workspace.files : [];
+  const folders = (c.workspace && Array.isArray(c.workspace.folders)) ? c.workspace.folders : [];
+  return [c.updatedAt||0, msgs.length, String(last.content||'').length, String(c.title||''), c.pinned?1:0, c.archived?1:0, c.projectId||'', c.mode||'', files.map(f=>String(f.name||'')+':'+(f.size||0)).join(',') + '#' + folders.length].join('|');
 }
 function cloudQueueSync(){
   if(!cloud.ready || !cloud.userId) return;
@@ -3659,6 +3723,29 @@ function cloudAttachments(list){
     dataUrl:(typeof a.dataUrl === 'string' && a.dataUrl.length < 60000) ? a.dataUrl : null
   }));
 }
+function cloudWorkspacePayload(workspace){
+  const files = (workspace && Array.isArray(workspace.files)) ? workspace.files : [];
+  const folders = (workspace && Array.isArray(workspace.folders)) ? workspace.folders : [];
+  let budget = 1600000;
+  const kept = [];
+  files.forEach(file=>{
+    if(!file || !file.name) return;
+    const content = String(file.content == null ? '' : file.content);
+    if(content.length > budget) return;
+    budget -= content.length;
+    kept.push({
+      id:file.id || '',
+      name:file.name,
+      language:file.language || '',
+      content:content,
+      encoding:file.encoding || 'text',
+      mimeType:file.mimeType || 'text/plain',
+      size:file.size || content.length,
+      ts:file.ts || Date.now()
+    });
+  });
+  return { files:kept, folders:folders.map(String) };
+}
 async function cloudPushConversation(c){
   const client = getSupabaseClient();
   if(!client || !cloud.userId || !c || !c.id) return false;
@@ -3673,6 +3760,7 @@ async function cloudPushConversation(c){
     project_id: c.projectId || null,
     pinned: !!c.pinned,
     archived: !!c.archived,
+    workspace: cloudWorkspacePayload(c.workspace),
     deleted_at: null,
     created_at: createdAt.toISOString(),
     updated_at: updatedAt.toISOString()
@@ -3753,7 +3841,7 @@ async function cloudPullConversations(){
   const client = getSupabaseClient();
   if(!client || !cloud.userId) return false;
   const { data: chatRows, error } = await client.from('chats')
-    .select('id, client_id, title, mode, model, project_id, pinned, archived, created_at, updated_at')
+    .select('id, client_id, title, mode, model, project_id, pinned, archived, workspace, created_at, updated_at')
     .eq('user_id', cloud.userId)
     .is('deleted_at', null)
     .order('updated_at', { ascending:false })
@@ -3805,6 +3893,10 @@ async function cloudPullConversations(){
       pinned: !!row.pinned,
       archived: !!row.archived,
       projectId: row.project_id || null,
+      workspace: {
+        files: Array.isArray(row.workspace && row.workspace.files) ? row.workspace.files : [],
+        folders: Array.isArray(row.workspace && row.workspace.folders) ? row.workspace.folders : []
+      },
       messages
     };
     if(local) Object.assign(local, conversation);
@@ -3867,13 +3959,8 @@ async function boot(){
     state.view = 'onboarding';
   }
 
-  const savedFiles = lsGet(LS.workspaceFiles, null);
-  if(Array.isArray(savedFiles)){
-    state.workspaceFiles = savedFiles.filter(file=>file && !['f_main','f_app'].includes(file.id));
-    state.activeFileId = state.workspaceFiles[0] ? state.workspaceFiles[0].id : null;
-  }
-  const savedFolders = lsGet(LS.workspaceFolders, null);
-  if(Array.isArray(savedFolders)) state.workspaceFolders = savedFolders.map(normalizeWorkspacePath).filter(Boolean);
+  migrateLegacyWorkspace();
+  syncActiveWorkspace();
 
   if(state.mode && MODES[state.mode]){} else state.mode='chat';
   if(lsGet('rexwork_sidebar_collapsed', false)){
@@ -3925,5 +4012,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5ad5445fe82fdc0',t:'MTc5NDczNTk5MA=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5ad5445fe82fdc0',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5adaf718b9bafdd',t:'MTc5NDczOTcyNQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5adaf718b9bafdd',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

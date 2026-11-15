@@ -4,8 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="rexwork-api" content="https://rexworks-backend.vercel.app/"/>
-<!-- Fill in with the same value as the APP_TOKEN env var on the backend.
-     Leave empty only if APP_TOKEN is unset (origin allow-list is used then). -->
+<!-- Optional shared APP_TOKEN for CLI/non-browser access. Browser requests
+     authenticate with the signed-in Supabase session token automatically. -->
 <meta name="rexwork-token" content=""/>
 <meta name="color-scheme" content="dark light" />
 <meta name="supabase-url" content="https://fdlklzveockeibcmijmz.supabase.co" />
@@ -1074,6 +1074,63 @@ const META_API_BASE = ((document.querySelector('meta[name="rexwork-api"]') || {}
 let API_BASE = META_API_BASE || '';
 const APP_TOKEN = ((document.querySelector('meta[name="rexwork-token"]') || {}).content || '').trim();
 
+async function apiAuthHeaders(forceRefresh = false){
+  const headers = {};
+  if(APP_TOKEN) headers['X-App-Token'] = APP_TOKEN;
+
+  let token = '';
+  const client = getSupabaseClient();
+  if(client){
+    try{
+      let session = null;
+      if(forceRefresh){
+        const { data } = await client.auth.refreshSession();
+        session = data && data.session;
+      } else {
+        const { data } = await client.auth.getSession();
+        session = data && data.session;
+        if(!session || (session.expires_at && session.expires_at * 1000 <= Date.now() + 30000)){
+          const refreshed = await client.auth.refreshSession();
+          if(refreshed && refreshed.data && refreshed.data.session){
+            session = refreshed.data.session;
+          }
+        }
+      }
+      if(session && session.access_token){
+        token = session.access_token;
+        if(state.auth) state.auth.access_token = token;
+      }
+    }catch(e){}
+  }
+
+  if(!token && !forceRefresh && state.auth && state.auth.access_token){
+    token = state.auth.access_token;
+  }
+
+  if(token){
+    headers['Authorization'] = 'Bearer ' + token;
+    const { key } = supabaseConfig();
+    if(key) headers['apikey'] = key;
+  }
+
+  return headers;
+}
+
+async function authFetch(url, options = {}){
+  const baseHeaders = Object.assign({}, options.headers || {});
+  const send = async (forceRefresh)=>{
+    const authHeaders = await apiAuthHeaders(forceRefresh);
+    return await fetch(url, Object.assign({}, options, {
+      headers: Object.assign({}, baseHeaders, authHeaders)
+    }));
+  };
+  let res = await send(false);
+  if(res.status === 401 && getSupabaseClient()){
+    res = await send(true);
+  }
+  return res;
+}
+
 async function probeHealth(base){
   const url = (base ? base.replace(/\/+$/, '') : '') + '/api/health';
   const r = await fetch(url, { signal: AbortSignal.timeout(4500) });
@@ -1140,10 +1197,14 @@ async function streamChat(mode, messages, onDelta, signal){
   }
   try{
     const body = { mode, messages, tools:{ web_search:state.search.webSearch, deep_research:state.search.deepResearch } };
-    const res = await fetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json','X-App-Token':APP_TOKEN}, body:JSON.stringify(body), signal });
+    const res = await authFetch(API_BASE + '/api/chat', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body), signal });
     if(!res.ok){
       let j=null; try{ j=await res.json(); }catch(e){}
-      return { ok:false, error: j && j.error, message: j && j.message };
+      return {
+        ok:false,
+        error: (j && j.error) || ('HTTP_' + res.status),
+        message: (j && j.message) || ('Server returned HTTP ' + res.status + '.')
+      };
     }
     const reader = res.body.getReader();
     const dec = new TextDecoder();
@@ -2255,7 +2316,7 @@ function addFiles(files){
     if(!isImg){
       try{
         const fd = new FormData(); fd.append('file', f);
-        const r = await fetch(API_BASE + '/api/upload',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
+        const r = await authFetch(API_BASE + '/api/upload',{method:'POST',body:fd});
         if(r.ok){ const j = await r.json(); a.readable = !!j.readable; a.text = j.text || null; }
       }catch(e){}
     } else {
@@ -2896,7 +2957,7 @@ function showVoicePill(listening, blob){
         
         if(state.backend.reachable && state.backend.keysLoaded>0){
           const fd=new FormData(); fd.append('file', blob, 'audio.webm');
-          const r=await fetch(API_BASE + '/api/transcribe',{method:'POST',headers:{'X-App-Token':APP_TOKEN},body:fd});
+          const r=await authFetch(API_BASE + '/api/transcribe',{method:'POST',body:fd});
           if(r.ok){ const j=await r.json(); $('#composer-input').value = (j.text||'').trim(); autoGrow(); toast('TRANSCRIBED'); pill.remove(); return; }
         }
         toast('TRANSCRIPTION UNAVAILABLE — PLAYING AUDIO');
@@ -3545,5 +3606,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

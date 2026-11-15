@@ -6,7 +6,7 @@
 <meta name="color-scheme" content="dark" />
 <title>RexWork — Sign in</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="icon" type="image/x-icon" href="assets/favicon.ico">
+<link rel="icon" type="image/png" href="assets/rexworks-logo.png" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -63,13 +63,26 @@ body::after{
   padding:12px 4px;
 }
 
+:root{ --rw-logo:url("data:image/png;base64,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"); }
+.rw-logo-tile{
+  background-color:#05070b;
+  background-image:var(--rw-logo);
+  background-size:76%;
+  background-position:center;
+  background-repeat:no-repeat;
+  border-radius:8px;
+  box-shadow:0 0 0 1px var(--border), 0 0 20px rgba(255,176,0,.16);
+}
 .logo{
-  width:46px; height:46px; margin:0 auto 24px;
-  background:var(--brand); color:var(--brand-text);
-  font-family:var(--font-pixel); font-size:20px; font-weight:700;
-  display:grid; place-items:center;
-  border-radius:6px;
-  box-shadow:0 0 28px rgba(255,176,0,.25), 0 4px 12px rgba(0,0,0,.5);
+  width:58px; height:58px; margin:0 auto 24px;
+  display:block;
+  border-radius:12px;
+  background-color:#05070b;
+  background-image:var(--rw-logo);
+  background-size:76%;
+  background-position:center;
+  background-repeat:no-repeat;
+  box-shadow:0 0 28px rgba(255,176,0,.25), 0 4px 12px rgba(0,0,0,.5), 0 0 0 1px var(--border);
   user-select:none;
 }
 
@@ -261,7 +274,7 @@ h1 .cur{
 <body>
 
 <div class="login-wrap">
-  <div class="logo">R</div>
+  <div class="logo rw-logo-tile" aria-hidden="true"></div>
   <h1 id="title-text">Welcome back<span class="cur">█</span></h1>
 
   <form id="email-form" onsubmit="return false;">
@@ -518,5 +531,5 @@ btnGoogle.addEventListener('click', async () => {
 });
 
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d4a938825d06f',t:'MTc5NDU2NzgyMQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d4a938825d06f',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d4a938825d06f',t:'MTc5NDU2NzgyMQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d4a938825d06f',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5ad573c4e3bff87',t:'MTc5NDczNjExMg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5ad573c4e3bff87',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

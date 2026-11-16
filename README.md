@@ -31,40 +31,6 @@ RexWorks/
 └── assets/
 ```
  
-## Setup
- 
-Backend:
- 
-```
-cd Backend
-pip install -r requirements.txt
-uvicorn main:app --reload
-```
- 
-Frontend: serve `Frontend/` with any static server, or open it through the backend at `/`. Set the `rexwork-api` meta tag in `index.html` to the backend URL.
- 
-Tests:
- 
-```
-cd Backend
-pytest
-```
- 
- 
-## API
- 
-All `/api/*` routes require `Authorization: Bearer <supabase_jwt>` or `X-App-Token`, except `/api/status`, `/api/health`, and `/api/index`.
- 
-| Method | Path | Description |
-| --- | --- | --- |
-| POST | `/api/chat` | Chat and coding, streamed |
-| POST | `/api/search` | Web search answer |
-| POST | `/api/canvas` | Transform content with a canvas action |
-| POST | `/api/upload` | Upload a file |
-| POST | `/api/transcribe` | Transcribe audio |
-| GET | `/api/models` | Available modes and models |
-| GET | `/api/status` | App status |
-| GET | `/api/health` | Health check |
  
 ## Deployment
  

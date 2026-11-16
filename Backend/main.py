@@ -1,19 +1,3 @@
-"""RexWork backend entrypoint.
-
-This file is intentionally tiny: it wires the FastAPI app, middleware,
-exception handlers and route modules together. All real logic lives in
-`core/`:
-
-    core/config.py      constants, limits, file locations
-    core/security.py    API-key pool, redaction, app-token guard
-    core/modes.py       mode personas + safety rules
-    core/validation.py  request validation, message building
-    core/provider.py    Groq client, retries, empty-answer repair
-    core/chat.py        chat SSE pipeline
-    core/agent.py       sandboxed coding agent
-    core/uploads.py     upload/transcription helpers
-    core/routes/        HTTP routes (meta, chat, files)
-"""
 
 import logging
 
@@ -34,7 +18,7 @@ logger = logging.getLogger("rexwork")
 app = FastAPI(title=APP_NAME, version=APP_VERSION)
 
 
-# --- Middleware ---------------------------------------------------------
+# Middleware
 
 @app.middleware("http")
 async def app_token_middleware(request: Request, call_next):
@@ -101,7 +85,7 @@ async def unhandled_error_handler(request: Request, error: Exception):
     return error_response(500, "INTERNAL_ERROR", "The server hit an unexpected error.")
 
 
-# --- Routes -------------------------------------------------------------
+# Routes
 
 app.include_router(meta_routes.router)
 app.include_router(chat_routes.router)

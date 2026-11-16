@@ -2,8 +2,7 @@
  
 AI workspace with chat, coding, and web search modes. FastAPI backend on Groq, static HTML frontend, Supabase login.
  
-- Frontend: https://rexworks-frontend.vercel.app
-- Backend: https://rexworks-backend.vercel.app
+- Web link: https://rexworks-frontend.vercel.app
 ## Features
  
 - Chat mode: general conversation, web search, image input

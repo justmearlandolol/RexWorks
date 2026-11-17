@@ -238,35 +238,104 @@
 
   /* ------------------------------------------------------- block repair */
 
+  var FENCE_HEAD = /^(\s*)(`{3,}|~{3,})(.*)$/;
+  var FENCE_LANG = /^([A-Za-z][\w+.#-]{0,19})/;
+  var COMMENT_START = /^(?:\/\/|#|--|;|<!--)/;
+  var CODE_CHARS = /[{;=()\[\]]|::|->|=>/;
+  var CODE_HINT_JS = /^\s*(?:def \w+\(|class \w+|import \w|from \w+ import |#include|public (?:class|void|static)|function \w+\(|const \w+\s*=|let \w+\s*=|var \w+\s*=|using \w|namespace \w|SELECT .+ FROM|\$ |sudo |npm |pnpm |yarn |pip |git |docker |curl |echo |cd |mkdir |ls )/;
+  var PROSE_HEADING = /^\s*#{2,6}\s+\S/;
+  var PROSE_BOLD = /^\s*\*\*[^*]+\*\*/;
+
+  function parseFenceLine(line) {
+    var match = FENCE_HEAD.exec(line);
+    if (!match) return null;
+
+    var tail = (match[3] || '').trim();
+    var lang = '';
+    var rest = '';
+
+    if (tail) {
+      var token = FENCE_LANG.exec(tail);
+      if (token) {
+        lang = token[1];
+        rest = tail.slice(token[0].length).trim();
+      } else {
+        rest = tail;
+      }
+    }
+
+    return { indent: match[1], markup: match[2], lang: lang, rest: rest };
+  }
+
+  function looksLikeCode(lines) {
+    return lines.some(function (line) {
+      return CODE_CHARS.test(line) || CODE_HINT_JS.test(line);
+    });
+  }
+
+  function proseBoundary(lines, body, index) {
+    if (!body.some(function (line) { return line.trim(); })) return false;
+    if (index > 0 && lines[index - 1].trim()) return false;
+
+    var line = lines[index];
+    if (!(PROSE_HEADING.test(line) || PROSE_BOLD.test(line))) return false;
+
+    return !looksLikeCode([line]);
+  }
+
   function normalizeFences(lines) {
     var out = [];
-    var i = 0;
+    var index = 0;
 
-    while (i < lines.length) {
-      var line = lines[i];
-      var match = FENCE.exec(line);
-      var any = FENCE_ANY.exec(line);
+    while (index < lines.length) {
+      var parsed = parseFenceLine(lines[index]);
 
-      if (match || (any && any[4])) {
-        var markup = (match || any)[2];
-        var lang = langLabel((match || any)[3]);
-        var closing = new RegExp('^\\s*' + markup.charAt(0) + '{' + markup.length + ',}\\s*$');
-        var body = match ? [] : [any[4]];
+      if (!parsed) { out.push(lines[index]); index += 1; continue; }
 
-        i += 1;
-        while (i < lines.length && !closing.test(lines[i])) { body.push(lines[i]); i += 1; }
-        if (i < lines.length) i += 1;
+      var markup = parsed.markup;
+      var body = [];
+      var cursor = index + 1;
+      var closedHere = false;
 
-        while (body.length && !body[body.length - 1].trim()) body.pop();
+      while (cursor < lines.length) {
+        var candidate = parseFenceLine(lines[cursor]);
 
-        out.push(markup + lang);
-        out.push.apply(out, body);
-        out.push(markup);
-        continue;
+        if (candidate && candidate.markup.charAt(0) === markup.charAt(0) &&
+            candidate.markup.length >= markup.length) {
+          // A marker with an info string starts a new fence, it does not close this one.
+          closedHere = !(candidate.lang === '' && candidate.rest === '');
+          break;
+        }
+
+        if (proseBoundary(lines, body, cursor)) { closedHere = true; break; }
+
+        body.push(lines[cursor]);
+        cursor += 1;
       }
 
-      out.push(line);
-      i += 1;
+      var trailing = parsed.rest;
+
+      if (trailing && (COMMENT_START.test(trailing) || CODE_CHARS.test(trailing) || CODE_HINT_JS.test(trailing))) {
+        body.unshift(trailing);
+      }
+
+      var pureMarker = parsed.lang === '' && parsed.rest === '';
+      if (pureMarker && !looksLikeCode(body)) {
+        var hasBlank = body.some(function (line) { return !line.trim(); });
+        if (hasBlank || !body.length) {
+          Array.prototype.push.apply(out, body);
+          index = cursor;
+          continue;
+        }
+      }
+
+      while (body.length && !body[body.length - 1].trim()) body.pop();
+
+      out.push(markup + langLabel(parsed.lang));
+      Array.prototype.push.apply(out, body);
+      out.push(markup);
+
+      index = closedHere ? cursor : (cursor > index ? cursor : index + 1);
     }
 
     return out;
@@ -521,6 +590,8 @@
     working = working.replace(/(^|[^\w*])\*[ \t]+([^\n*]+?)[ \t]+\*(?![\w*])/g, '$1*$2*');
     working = working.replace(/(^|[^\w_])_[ \t]+([^\n_]+?)[ \t]+_(?![\w_])/g, '$1_$2_');
     working = working.replace(/\*\*\*\*/g, '');
+    // `Hey Justin!Here's ...` -> insert the missing space after the sentence.
+    working = working.replace(/([a-z0-9!)\]\u201d])([A-Z][a-z])/g, '$1 $2');
     working = working.replace(/[ \t]{2,}/g, ' ').replace(/^\s+|\s+$/g, '');
 
     return restoreCode(working, stashed.spans);

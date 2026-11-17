@@ -13,6 +13,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<script src="rexwork-format.js"></script>
 <script src="greet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -892,6 +893,86 @@ textarea.input{ resize:vertical; min-height:90px; }
   .composer-hint{ display:none; }
   #composer{ padding:8px 8px 12px; }
   #composer-input{ font-size:15px; padding:16px 14px 2px; }
+}
+
+/* ============================================================
+   Markdown reading experience (RexFormat + RexReveal)
+   ChatGPT-like rhythm: readable measure, calm tables, slow reveal.
+   ============================================================ */
+.msg.assistant .md{
+  font-size:calc(var(--fs-body) * 1.02);
+  line-height:1.72;
+}
+/* prose keeps a comfortable measure; tables and code get the full width */
+.msg.assistant .md > p,
+.msg.assistant .md > ul,
+.msg.assistant .md > ol,
+.msg.assistant .md > h1,
+.msg.assistant .md > h2,
+.msg.assistant .md > h3,
+.msg.assistant .md > h4,
+.msg.assistant .md > blockquote{
+  max-width:74ch;
+}
+.msg.assistant .md > *:first-child{ margin-top:0; }
+.md p{ margin:0 0 14px; }
+.md p:last-child{ margin-bottom:0; }
+.md h1,.md h2,.md h3,.md h4,.md h5,.md h6{
+  text-transform:none; letter-spacing:.2px; line-height:1.35;
+  margin:26px 0 12px;
+}
+.md h1:first-child,.md h2:first-child,.md h3:first-child{ margin-top:0; }
+.md ul,.md ol{ margin:0 0 14px; padding-left:24px; }
+.md li{ margin:5px 0; }
+.md li > p{ margin:0; }
+.md blockquote{ margin:14px 0; padding:8px 16px; }
+.md pre{ margin:16px 0; }
+.md table{ margin:16px 0; font-size:.92em; }
+.md th,.md td{ padding:9px 12px; vertical-align:top; }
+.md th{ white-space:nowrap; text-transform:none; letter-spacing:0; font-size:9px; }
+.md hr{ margin:22px 0; }
+
+/* soft entrance only for the message currently being written */
+.msg.rx-new{ animation:rx-msg-in .3s ease both; }
+@keyframes rx-msg-in{ from{ opacity:0; transform:translateY(4px); } to{ opacity:1; transform:none; } }
+
+/* the reveal host */
+.rx-reveal{ position:relative; }
+.rx-reveal > *{ animation:rx-block-in .34s ease both; }
+@keyframes rx-block-in{
+  from{ opacity:0; transform:translateY(3px); filter:blur(.4px); }
+  to{ opacity:1; transform:none; filter:none; }
+}
+.rx-reveal h1,.rx-reveal h2,.rx-reveal h3{ animation-duration:.45s; }
+.rx-reveal pre,.rx-reveal table{ animation-duration:.5s; }
+.rx-reveal table{ display:block; overflow-x:auto; }
+.rx-reveal-done > *{ animation:none; }
+
+/* blinking caret while the answer is still landing */
+.rx-caret{
+  display:inline-block; width:7px; height:1.05em; margin-left:2px;
+  background:var(--brand); border-radius:1px; vertical-align:-.18em;
+  animation:rx-caret 1s steps(2,end) infinite;
+}
+@keyframes rx-caret{ 0%,45%{ opacity:1; } 50%,100%{ opacity:.15; } }
+
+/* "still writing" hint under the streaming bubble */
+.rx-writing{
+  display:inline-flex; align-items:center; gap:8px; margin-top:10px;
+  font-family:var(--font-pixel); font-size:7px; letter-spacing:1px; color:var(--muted);
+}
+.rx-writing i{
+  width:5px; height:5px; border-radius:50%; background:var(--brand);
+  animation:rx-dot 1.1s infinite ease-in-out;
+}
+.rx-writing i:nth-child(2){ animation-delay:.15s; }
+.rx-writing i:nth-child(3){ animation-delay:.3s; }
+@keyframes rx-dot{ 0%,80%,100%{ opacity:.25; transform:translateY(0); } 40%{ opacity:1; transform:translateY(-2px); } }
+
+@media (prefers-reduced-motion: reduce){
+  .msg, .rx-reveal > *{ animation:none !important; }
+  .rx-caret{ display:none; }
+  .rx-reveal table{ display:table; overflow:visible; }
 }
 </style>
 </head>
@@ -2124,6 +2205,13 @@ function renderWorkspacePanel(){
 }
 
 function renderChat(){
+  // A full re-render replaces the DOM, so any running reveal must be dropped
+  // first (the static render already shows the complete answer).
+  if(activeReveal){
+    const reveal = activeReveal;
+    activeReveal = null;
+    try{ reveal.stop(); }catch(error){}
+  }
   const inner = $('#chat-inner');
   const c = currentConversation();
   const wsHTML = '';
@@ -2169,7 +2257,7 @@ function messageHTML(m, i, c){
       <div class="body">
         <div class="who">${esc(getUserDisplayName().toUpperCase())}</div>
         ${chips}
-        <div class="bubble md">${renderMarkdown(m.content)}</div>
+        <div class="bubble md">${assistantMdHTML(m.content)}</div>
         <div class="msg-acts">
           <button class="icon-btn" data-uact="copy" title="Copy">${COPY_SVG}</button>
           <button class="icon-btn" data-uact="edit" title="Edit">${EDIT_SVG}</button>
@@ -2190,7 +2278,7 @@ function messageHTML(m, i, c){
     const thoughtText = thinkMatch[1].trim();
     rawContent = rawContent.replace(/<think>[\s\S]*?<\/think>/i, '').trim();
     if(thoughtText){
-      cotHTML = '<div class="cot-wrap"><button type="button" class="cot-toggle" data-cot-toggle><span class="cot-icon">💭</span><span class="cot-label">Thought Process</span><span class="cot-arrow">▾</span></button><div class="cot-body">' + renderMarkdown(thoughtText) + '</div></div>';
+      cotHTML = '<div class="cot-wrap"><button type="button" class="cot-toggle" data-cot-toggle><span class="cot-icon">💭</span><span class="cot-label">Thought Process</span><span class="cot-arrow">▾</span></button><div class="cot-body">' + assistantMdHTML(thoughtText) + '</div></div>';
     }
   } else if(rawContent.startsWith('<think>')){
     const thoughtText = rawContent.replace('<think>', '').trim();
@@ -2220,11 +2308,11 @@ function messageHTML(m, i, c){
     pillsHTML = '<div class="agent-pills-row">' + actionPills.join('') + '</div>';
   }
 
-  const renderedBody = cotHTML + pillsHTML + renderMarkdown(rawContent.trim());
+  const renderedBody = cotHTML + pillsHTML + assistantMdHTML(rawContent.trim());
   const isStreamingMsg = state.streaming && c && i === (c.messages.length - 1);
   const cancelBarHTML = isStreamingMsg ? '<div class="stream-cancel-row"><button type="button" class="btn-stream-cancel" data-cancel-stream><span class="sc-ico">⏹</span> CANCEL MESSAGE</button></div>' : '';
 
-  return `<div class="msg assistant" data-i="${i}">
+  return `<div class="msg assistant${isStreamingMsg ? ' rx-new' : ''}" data-i="${i}">
     <div class="role-ico" aria-hidden="true"></div>
     <div class="body">
       <div class="who">${esc(m.model && m.model.includes('Arlon') ? 'ARLON-POWERED 2' : (state.mode==='coding' ? 'ARLON-POWERED 2' : (state.mode==='vision' ? 'BRAX VISION' : 'BRAX')))} ${demoBadge}${modelBadge}</div>
@@ -2394,11 +2482,101 @@ async function sendMessage(){
 
   if(!asst.content) asst.content = '**SOMETHING WENT WRONG.**\n\nThe model returned no text.\n\n[ TRY AGAIN ]';
   const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
+
+  // Static render first (so the answer is safely on screen), then hand the
+  // finished bubble to the reveal so it can animate in place.
   c.updatedAt = now();
   saveConversations();
   renderAll();
   if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
-  maybeAutoRead(asst.content);
+  revealAssistantAnswer(asst, createdItems.length > 0);
+}
+
+/* ---------------------------------------------------------------------------
+   Answer presentation
+   The backend already repairs the Markdown; this is where the answer is handed
+   to the reader slowly: blocks fade in one by one with a blinking caret, and
+   the composer stays locked until the reveal finishes (ESC / click skips).
+   --------------------------------------------------------------------------- */
+
+function formatMarkdownSource(text){
+  if(window.RexFormat && typeof window.RexFormat.markdown === 'function'){
+    return window.RexFormat.markdown(text);
+  }
+  return text;
+}
+
+function assistantMdHTML(text){
+  const fixed = formatMarkdownSource(text);
+  return renderMarkdown(fixed);
+}
+
+let activeReveal = null;
+
+function revealAssistantAnswer(asst, keepStreamingHint){
+  const c = currentConversation();
+  if(!c) return;
+  const index = c.messages.indexOf(asst);
+  if(index < 0) return;
+
+  const msgEl = document.querySelector(`.msg.assistant[data-i="${index}"]`);
+  const host = msgEl ? msgEl.querySelector('.md') : null;
+  const text = asst.content || '';
+
+  const finish = ()=>{
+    if(activeReveal){ activeReveal.stop(); activeReveal = null; }
+    state.streaming = false;
+    updateComposerState();
+    renderAll();
+    maybeAutoRead(asst.content);
+  };
+
+  if(!host || !window.RexReveal || !window.RexReveal.settings.enabled || prefersReducedMotionSafe()){
+    finish();
+    return;
+  }
+
+  if(activeReveal){ activeReveal.stop(); activeReveal = null; }
+
+  state.streaming = true;
+  updateComposerState();
+  host.classList.add('rx-reveal');
+
+  if(keepStreamingHint){
+    const hint = document.createElement('div');
+    hint.className = 'rx-writing';
+    hint.innerHTML = '<i></i><i></i><i></i> RENDERING ANSWER';
+    host.parentElement.appendChild(hint);
+  }
+
+  activeReveal = window.RexReveal.start({
+    host: host,
+    text: text,
+    onTick: throttleScroll,
+    onDone: ()=>{
+      activeReveal = null;
+      finish();
+    }
+  });
+}
+
+function prefersReducedMotionSafe(){
+  try{ return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch(e){ return false; }
+}
+
+function skipActiveReveal(){
+  if(!activeReveal) return false;
+  const reveal = activeReveal;
+  activeReveal = null;
+  reveal.finish();
+  return true;
+}
+
+let scrollTimer = null;
+function throttleScroll(){
+  if(scrollTimer) return;
+  scrollTimer = setTimeout(()=>{ scrollTimer = null; scrollBottom(); }, 90);
 }
 
 function makeTitle(text){
@@ -2410,7 +2588,37 @@ function makeTitle(text){
 let renderTimer=null;
 function throttleRender(){
   if(renderTimer) return;
-  renderTimer = setTimeout(()=>{ renderTimer=null; renderChat(); }, 40);
+  renderTimer = setTimeout(()=>{ renderTimer=null; renderStreamingBubble(); }, 55);
+}
+
+/* While the model is still writing we never re-render the whole chat (that is
+ * what made the table jump around). Only the live bubble is refreshed, and it
+ * is repaired with the same formatter the final answer uses. */
+function renderStreamingBubble(){
+  const c = currentConversation();
+  if(!c || !c.messages.length) return;
+  const index = c.messages.length - 1;
+  const message = c.messages[index];
+  if(!message || message.role !== 'assistant') return;
+
+  const msgEl = document.querySelector(`.msg.assistant[data-i="${index}"]`);
+  if(!msgEl) { renderChat(); return; }
+
+  const host = msgEl.querySelector('.md');
+  if(!host) { renderChat(); return; }
+
+  const body = (message.content || '').trim();
+  const html = body ? assistantMdHTML(stripAgentPills(body)) : '';
+  const caret = body ? '<span class="rx-caret" aria-hidden="true"></span>' : '';
+  host.innerHTML = html + caret || '<div class="rx-writing"><i></i><i></i><i></i> REXWORK IS THINKING</div>';
+  scrollBottom();
+}
+
+function stripAgentPills(text){
+  return String(text)
+    .replace(/\[(?:bash|explored|read|created):[^\]]*\]/gi, '')
+    .replace(/<think>[\s\S]*?<\/think>/i, '')
+    .trim();
 }
 
 function renderStreamingUI(){
@@ -2429,6 +2637,7 @@ function maybeAutoRead(text){
 }
 
 function stopGenerating(){
+  if(skipActiveReveal()) return;
   if(!state.streaming) return;
   state.wasCancelled = true;
   if(state.controller){
@@ -2466,7 +2675,8 @@ function updateComposerState(){
     b.classList.remove('btn-cancel-active');
   }
   const hint=$('#composer-hint');
-  if(state.streaming) hint.textContent='REXWORK IS THINKING... (CLICK CANCEL OR ESC TO DISCARD)';
+  if(activeReveal) hint.textContent='RENDERING ANSWER... (CLICK OR ESC TO SKIP)';
+  else if(state.streaming) hint.textContent='REXWORK IS THINKING... (CLICK CANCEL OR ESC TO DISCARD)';
   else if(state.mode==='vision' && !state.backend.visionAvailable) hint.textContent='VISION MODEL UNAVAILABLE';
   else hint.textContent='ENTER TO SEND · SHIFT+ENTER FOR NEW LINE';
 }
@@ -2750,7 +2960,7 @@ function canvasUndo(){ if(state.canvas.hidx>0){ state.canvas.hidx--; state.canva
 function canvasRedo(){ if(state.canvas.hidx<state.canvas.history.length-1){ state.canvas.hidx++; state.canvas.doc=state.canvas.history[state.canvas.hidx]; refreshCanvasDoc(); } }
 function refreshCanvasDoc(){
   const ta=$('#canvas-input'); if(ta){ ta.value=state.canvas.doc; if(state.canvas.kind==='code') updateGutter(ta); }
-  const pv=$('#canvas-preview'); if(pv) pv.innerHTML = renderMarkdown(state.canvas.doc);
+  const pv=$('#canvas-preview'); if(pv) pv.innerHTML = assistantMdHTML(state.canvas.doc);
 }
 function toggleCanvasPreview(){
   const body=$('#canvas-body');
@@ -2761,7 +2971,7 @@ function toggleCanvasPreview(){
   } else {
     state.canvas.doc = $('#canvas-input') ? $('#canvas-input').value : state.canvas.doc;
     body.dataset.preview='1';
-    body.innerHTML = `<div class="canvas-preview md" id="canvas-preview">${renderMarkdown(state.canvas.doc)}</div>`;
+    body.innerHTML = `<div class="canvas-preview md" id="canvas-preview">${assistantMdHTML(state.canvas.doc)}</div>`;
   }
 }
 function exportCanvas(){
@@ -2945,6 +3155,19 @@ function renderSettings(){
         <select class="select" id="st-default" style="width:auto">${MODE_ORDER.map(k=>`<option value="${k}" ${s.defaultMode===k?'selected':''}>${MODES[k].label}</option>`).join('')}</select></div>
     </div></div>
 
+    <div class="card"><div class="card-head"><span class="lbl">RESPONSE ANIMATION</span></div><div class="card-body">
+      <div class="opt-row"><div><div class="ol">Slow animated reveal</div><div class="os">Answers type themselves in, block by block</div></div>
+        <label class="switch"><input type="checkbox" id="st-reveal" ${revealOn()?'checked':''}><span class="track"></span></label></div>
+      <div class="opt-row"><div><div class="ol">Reveal speed</div><div class="os">Takes effect on the next answer</div></div>
+        <div class="seg" id="seg-reveal">
+          <button data-reveal="slow" class="${revealPace()==='slow'?'on':''}">SLOW</button>
+          <button data-reveal="normal" class="${revealPace()==='normal'?'on':''}">NORMAL</button>
+          <button data-reveal="instant" class="${revealPace()==='instant'?'on':''}">INSTANT</button>
+        </div></div>
+      <div class="opt-row"><div><div class="ol">Soft typing sound</div></div>
+        <label class="switch"><input type="checkbox" id="st-reveal-sound" ${revealSound()?'checked':''}><span class="track"></span></label></div>
+    </div></div>
+
     <div class="card"><div class="card-head"><span class="lbl">VOICE</span></div><div class="card-body">
       <div class="opt-row"><div><div class="ol">Auto-read responses</div></div>
         <label class="switch"><input type="checkbox" id="st-autoread" ${s.voice.autoRead?'checked':''}><span class="track"></span></label></div>
@@ -2978,6 +3201,24 @@ function renderSettings(){
   $('#st-enter').addEventListener('change',e=>{ s.enterToSend=e.target.checked; saveSettings(); });
   $('#st-default').addEventListener('change',e=>{ s.defaultMode=e.target.value; saveSettings(); });
   $('#st-autoread').addEventListener('change',e=>{ s.voice.autoRead=e.target.checked; saveSettings(); });
+  const revealToggle = $('#st-reveal');
+  if(revealToggle) revealToggle.addEventListener('change',e=>{
+    window.RexReveal.settings.enabled = e.target.checked;
+    window.RexReveal.saveSettings();
+    toast(e.target.checked ? 'ANIMATED REVEAL ON' : 'ANIMATED REVEAL OFF');
+  });
+  const revealSound = $('#st-reveal-sound');
+  if(revealSound) revealSound.addEventListener('change',e=>{
+    window.RexReveal.settings.sound = e.target.checked;
+    window.RexReveal.saveSettings();
+  });
+  const segReveal = $('#seg-reveal');
+  if(segReveal) segReveal.querySelectorAll('[data-reveal]').forEach(b=>b.addEventListener('click',()=>{
+    window.RexReveal.settings.pace = b.getAttribute('data-reveal');
+    window.RexReveal.saveSettings();
+    renderSettings();
+    toast('REVEAL SPEED: ' + b.getAttribute('data-reveal').toUpperCase());
+  }));
   $('#st-speed').addEventListener('change',e=>{ s.voice.playbackSpeed=parseFloat(e.target.value); saveSettings(); });
   $('#st-export').addEventListener('click',()=>{
     const blob=new Blob([JSON.stringify(state.conversations,null,2)],{type:'application/json'});
@@ -3001,6 +3242,16 @@ function renderSettings(){
   });
 }
 
+
+function revealOn(){
+  return !!(window.RexReveal && window.RexReveal.settings.enabled);
+}
+function revealPace(){
+  return (window.RexReveal && window.RexReveal.settings.pace) || 'slow';
+}
+function revealSound(){
+  return !!(window.RexReveal && window.RexReveal.settings.sound);
+}
 
 function applyTheme(){
   const th = state.theme==='system' ? (window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark') : state.theme;
@@ -3178,7 +3429,7 @@ function confirmModal(msg, onOk){
 
 
 let sidebarTap = { id:'', ts:0 };
-function openChat(id){ state.currentId=id; state.view='chat'; closeSidebar(); renderAll(); }
+function openChat(id){ skipActiveReveal(); state.currentId=id; state.view='chat'; closeSidebar(); renderAll(); }
 
 const TITLE_MIN = 1;
 const TITLE_MAX = 100;
@@ -3497,6 +3748,9 @@ function bindEvents(){
   $('#btn-send').addEventListener('click',()=>{ if(state.streaming) stopGenerating(); else sendMessage(); });
   window.addEventListener('keydown', e=>{ if(e.key==='Escape' && state.streaming){ e.preventDefault(); stopGenerating(); } });
   document.addEventListener('click', e=>{ if(e.target.closest('[data-cancel-stream]')){ e.preventDefault(); stopGenerating(); } });
+  document.addEventListener('click', e=>{
+    if(activeReveal && !e.target.closest('a,button,[data-cancel-stream]')) skipActiveReveal();
+  });
   $('#file-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#image-input').addEventListener('change',e=>{ addFiles(e.target.files); e.target.value=''; });
   $('#workspace-panel').addEventListener('click',e=>{

@@ -1557,12 +1557,18 @@ function isMarkdownBlockStart(line){
 }
 const CODE_FILE_HINT = /(?:\[created:\s*([^\]]+)\]|`([\w./-]+\.[a-z0-9]{1,6})`|^#{1,6}\s*([\w./-]+\.[a-z0-9]{1,6})\s*$|^\s*([\w./-]+\.[a-z0-9]{1,6})\s*:?\s*$)/i;
 
+/* ```csharp// HelloWorld.cs  (or ```js file: app.js) -> "HelloWorld.cs" */
+function fenceFileHint(fenceLine){
+  const info = String(fenceLine || '').replace(/^\s*```+/, '').replace(/\s+$/, '');
+  const match = /(?:\/\/|#|--|;|<!--|file:)\s*([\w./@-]+\.[a-z0-9]{1,6})\b/i.exec(info);
+  return match ? normalizeWorkspacePath(match[1]) : '';
+}
+
 function findCodeFileHint(hints, size, index){
   if(!hints || !hints.length) return '';
-  const before = hints.filter(h=>h.index <= index);
-  const pick = before.length ? before[before.length - 1] : null;
-  if(pick) return pick.name;
-  return hints[0].name || '';
+  const near = hints.filter(h=>h.index <= index && index - h.index <= 3);
+  if(!near.length) return '';
+  return near[near.length - 1].name;
 }
 
 function renderMarkdown(src){
@@ -1570,10 +1576,15 @@ function renderMarkdown(src){
   const lines = String(src).replace(/\r\n?/g, '\n').split('\n');
   const codeFileHints = [];
   lines.forEach((line, index)=>{
-    const text = line.trim().replace(/^[>*_\s]+/, '').replace(/[*_]\s*$/, '');
-    const match = CODE_FILE_HINT.exec(text);
-    if(!match) return;
-    const name = normalizeWorkspacePath(match[1] || match[2] || match[3] || match[4] || '');
+    const text = line.trim()
+      .replace(/^[>*_\s]+/, '')
+      .replace(/[*_]\s*$/, '')
+      .replace(/^`([^`]*)`$/, '$1')
+      .replace(/^\[created:\s*(.+)\]$/i, '$1')
+      .replace(/^#{1,6}\s*/, '');
+    // Only a line that is *just* a file name counts (not "save it as `x.cs`").
+    if(!/^[\w./@-]+\.[a-z0-9]{1,6}$/i.test(text)) return;
+    const name = normalizeWorkspacePath(text);
     if(!name || name.endsWith('/')) return;
     codeFileHints.push({ index, name });
   });
@@ -1603,7 +1614,8 @@ function renderMarkdown(src){
       if(i < lines.length) i += 1;
       // The inline hint lets the code card show the real file name:
       //   [created: props-with-beat.json]  or  `src/SingAlong.jsx` right above.
-      const hint = findCodeFileHint(codeFileHints, codeStart);
+      const fenceHint = fenceFileHint(line);
+      const hint = fenceHint || findCodeFileHint(codeFileHints, codeStart);
       html += `<pre data-lang="${esc(language)}"${hint ? ` data-file-hint="${esc(hint)}"` : ''}><div class="pre-head"><span class="lang">${esc(language)}</span><button type="button" class="copy">COPY</button></div><code class="language-${esc(language)}">${esc(codeLines.join('\n'))}</code></pre>`;
       continue;
     }
@@ -2162,12 +2174,55 @@ function saveUploadedFileToWorkspace(file){
   if(binary) reader.readAsDataURL(file);
   else reader.readAsText(file);
 }
+const EXT_BY_LANGUAGE = {
+  python:'py', javascript:'js', typescript:'ts', jsx:'jsx', tsx:'tsx', bash:'sh', shell:'sh',
+  json:'json', html:'html', css:'css', sql:'sql', yaml:'yml', yml:'yml', markdown:'md',
+  csharp:'cs', cs:'cs', 'c#':'cs', cpp:'cpp', 'c++':'cpp', c:'c', go:'go', rust:'rs',
+  java:'java', kotlin:'kt', php:'php', ruby:'rb', swift:'swift', text:'txt', plaintext:'txt'
+};
+
+const FILE_LIKE = /^[\w./@-]+\.[a-z0-9]{1,6}$/i;
+
+/* Where should a code block be saved? Explicit `[created: path]` wins, then a
+ * `// filename` / `# filename` comment inside the snippet, then the sentence
+ * right above the block ("simpan sebagai HelloWorld.cs"), then a generated name. */
+function inferFileName(block, index, language, nearText){
+  // `// HelloWorld.cs` on the fence line, or as the first line of the snippet
+  const fenceComment = /(?:\/\/|#|--|;|<!--|file:)\s*([\w./@-]+\.[a-z0-9]{1,6})\b/i.exec(block.info || '');
+  if(fenceComment) return normalizeWorkspacePath(fenceComment[1]);
+  const comment = /^\s*(?:\/\/|#|--|;|<!--)\s*([\w./@-]+\.[a-z0-9]{1,6})\b/i.exec(block.content || '');
+  if(comment) return normalizeWorkspacePath(comment[1]);
+
+  const near = String(nearText || '');
+  const named = near.match(/(?:as|sebagai|nama|bernama|file|named)\s+`?([\w./@-]+\.[a-z0-9]{1,6})`?/i)
+    || near.match(/`([\w./@-]+\.[a-z0-9]{1,6})`/);
+  if(named) return normalizeWorkspacePath(named[1]);
+
+  const ext = EXT_BY_LANGUAGE[(language || '').toLowerCase()] || 'txt';
+  const base = { python:'main', javascript:'app', typescript:'app', jsx:'App', tsx:'App',
+                 csharp:'Program', 'c#':'Program', cs:'Program', cpp:'main', c:'main',
+                 java:'Main', go:'main', rust:'main', php:'index', ruby:'main',
+                 bash:'run', shell:'run', json:'data', yaml:'config', yml:'config',
+                 sql:'query', html:'index', css:'styles', markdown:'notes', text:'snippet' }[(language || '').toLowerCase()] || 'snippet';
+  return 'src/' + base + (ext === 'txt' ? '-' + (index + 1) : '') + '.' + ext;
+}
+
+let lastSavedWorkspaceNames = [];
+
 function captureAssistantWorkspaceArtifacts(content){
   const source = String(content || '');
   const directives = Array.from(source.matchAll(/\[created:\s*([^\]]+)\]/gi)).map(match=>normalizeWorkspacePath(match[1])).filter(Boolean);
-  if(!directives.length) return [];
-  const blocks = Array.from(source.matchAll(/```([\w+-]*)\s*\n([\s\S]*?)```/g)).map(match=>({ language:match[1] || '', content:match[2] }));
+  const blocks = Array.from(source.matchAll(/```([^\n]*)\n([\s\S]*?)```/g)).map(match=>{
+    const info = match[1] || '';
+    const language = (info.match(/^([\w+.#-]+)/) || [,''])[1].toLowerCase();
+    const at = match.index || 0;
+    const before = source.slice(Math.max(0, at - 220), at).split('\n').slice(-3).join(' ');
+    return { language, info, content: match[2], near: before };
+  });
+
   const saved = [];
+
+  // 1) explicit directives keep their exact path
   directives.forEach((path, index)=>{
     const block = blocks[index] || blocks[0] || null;
     const isFolder = /\/$/.test(path) || (!path.split('/').pop().includes('.') && !block);
@@ -2183,7 +2238,33 @@ function captureAssistantWorkspaceArtifacts(content){
     });
     if(item) saved.push(item.name);
   });
-  return saved;
+
+  // 2) every remaining code block is saved too, so the workspace always has it
+  blocks.forEach((block, index)=>{
+    const code = String(block.content || '');
+    if(!code.trim()) return;
+
+    // A plain ``` block is usually console output or a snippet of text, not a
+    // file. Only save those when the answer actually names them.
+    const named = /(?:\/\/|#|--|;|<!--|file:)\s*([\w./@-]+\.[a-z0-9]{1,6})\b/i.test(block.info || '')
+      || /^\s*(?:\/\/|#|--|;|<!--)\s*[\w./@-]+\.[a-z0-9]{1,6}\b/i.test(code);
+    if((!block.language || block.language === 'text') && !named) return;
+
+    const name = inferFileName(block, index, block.language, block.near);
+    if(!name) return;
+    if(directives.includes(name)) return;
+    if((state.workspaceFiles || []).some(file=>normalizeWorkspacePath(file.name) === name && file.content === code)) return;
+    const item = upsertWorkspaceFile({
+      name,
+      language: block.language,
+      content: code,
+      mimeType: 'text/plain'
+    });
+    if(item) saved.push(item.name);
+  });
+
+  lastSavedWorkspaceNames = Array.from(new Set(saved));
+  return lastSavedWorkspaceNames;
 }
 function zipCrc32(bytes){
   let crc = -1;
@@ -2572,7 +2653,7 @@ async function sendMessage(){
   c.updatedAt = now();
   saveConversations();
   renderAll();
-  if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
+  if(createdItems.length) toast('SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
   revealAssistantAnswer(asst, createdItems.length > 0);
 }
 
@@ -2585,7 +2666,17 @@ async function sendMessage(){
 function codeFileNameFor(pre, index, language){
   const hint = pre.getAttribute('data-file-hint');
   if(hint) return hint;
-  const ext = { python:'py', javascript:'js', typescript:'ts', bash:'sh', shell:'sh', json:'json', html:'html', css:'css', jsx:'jsx', tsx:'tsx', sql:'sql', yaml:'yml', markdown:'md', text:'txt', rust:'rs', go:'go', java:'java', php:'php', ruby:'rb' }[language] || 'txt';
+
+  // the formatter may have moved a glued name into the first line of the code
+  const firstLine = ((pre.querySelector('code') || {}).textContent || '').split('\n')[0] || '';
+  const named = /(?:^|\s)(?:\/\/|#|--|;|<!--)\s*([\w./@-]+\.[a-z0-9]{1,6})\b/i.exec(firstLine);
+  if(named) return normalizeWorkspacePath(named[1]);
+
+  const ext = { python:'py', javascript:'js', typescript:'ts', bash:'sh', shell:'sh', json:'json',
+                html:'html', css:'css', jsx:'jsx', tsx:'tsx', sql:'sql', yaml:'yml', yml:'yml',
+                markdown:'md', text:'txt', rust:'rs', go:'go', java:'java', php:'php', ruby:'rb',
+                csharp:'cs', 'c#':'cs', cs:'cs', cpp:'cpp', 'c++':'cpp', c:'c', kotlin:'kt',
+                swift:'swift' }[String(language || '').toLowerCase()] || 'txt';
   return 'snippet-' + (index + 1) + '.' + ext;
 }
 
@@ -2594,7 +2685,17 @@ function decorateCodeBlock(pre, index, name){
   const code = pre.querySelector('code');
   if(!code) return;
   const language = (code.className.match(/language-([\w+-]+)/) || [,''])[1] || pre.getAttribute('data-lang') || 'text';
-  window.RexCode.decorate(pre, { language: language, name: name || codeFileNameFor(pre, index || 0, language) });
+  let resolved = name || codeFileNameFor(pre, index || 0, language);
+  const savedPath = (lastSavedWorkspaceNames || []).find(path=>
+    normalizeWorkspacePath(path) === normalizeWorkspacePath(resolved));
+  const fallbackSaved = !savedPath && !name && lastSavedWorkspaceNames && lastSavedWorkspaceNames[index];
+  const finalName = savedPath || (fallbackSaved ? lastSavedWorkspaceNames[index] : resolved);
+  window.RexCode.decorate(pre, {
+    language: language,
+    name: finalName,
+    saved: !!(savedPath || fallbackSaved),
+    sourceLabel: (savedPath || fallbackSaved) ? 'workspace' : ''
+  });
 }
 
 /* `[created: file.js]` is turned into a pill before the Markdown is rendered,
@@ -3845,7 +3946,7 @@ async function regenerateFrom(){
   if(!asst.content) asst.content='**SOMETHING WENT WRONG.**\n\nThe model returned no text.\n\n[ TRY AGAIN ]';
   const createdItems = captureAssistantWorkspaceArtifacts(asst.content);
   c.updatedAt=now(); saveConversations(); renderAll();
-  if(createdItems.length) toast('AI SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
+  if(createdItems.length) toast('SAVED TO WORKSPACE: ' + createdItems.join(', ').toUpperCase());
 }
 function editUserMessage(i,m){
   openModal(`<div class="modal-head"><span class="mh">EDIT MESSAGE</span><button class="icon-btn" data-close>${X_SVG}</button></div>
@@ -4561,5 +4662,5 @@ const DL_SVG=svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-
 
 boot();
 </script>
-<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5adbcee591570b5',t:'MTc5NDc0MDI3Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5adbcee591570b5',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5be917ad9760d98',t:'MTc5NDkxNjc1NQ=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5be917ad9760d98',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a59d474929f9b5d6',t:'MTc5NDU2NzY4Ng=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a59d474929f9b5d6',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5a1f5353c5b8093',t:'MTc5NDYxNjc1Mw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5a1f5353c5b8093',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5aa69daeae50d3d',t:'MTc5NDcwNTQxNw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5aa69daeae50d3d',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5adbcee591570b5',t:'MTc5NDc0MDI3Nw=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5adbcee591570b5',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a5be9fd01e9ab486',t:'MTc5NDkxNzM0Mg=='};var l=window.parent.location,o;try{o=new URL(l.origin).origin}catch(e){try{o=new URL(new URL(l.href).origin).origin}catch(e){o=''}}var u='/cdn-cgi/challenge-platform/scripts/jsd/main.js?ray=a5be9fd01e9ab486',a=document.createElement('script');a.src=o?new URL(u,o).href:u;document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>

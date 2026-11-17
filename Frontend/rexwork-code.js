@@ -3,7 +3,6 @@
 
   var MAX_HIGHLIGHT_CHARS = 120000;
 
-  /* ------------------------------------------------------------- helpers */
 
   function esc(value) {
     return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
@@ -371,6 +370,9 @@
       + '.md pre.rx-code .pre-file{ display:flex; align-items:center; gap:7px; min-width:0; }'
       + '.md pre.rx-code .pre-name{ font-family:var(--font-mono); font-size:12px; color:var(--text-soft); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }'
       + '.md pre.rx-code .pre-meta{ font-family:var(--font-mono); font-size:11px; color:var(--faint); white-space:nowrap; }'
+      + '.md pre.rx-code .pre-saved{'
+      + '  font-family:var(--font-mono); font-size:9.5px; letter-spacing:.06em; color:var(--green);'
+      + '  border:1px solid rgba(102,212,138,.35); background:rgba(102,212,138,.1); border-radius:3px; padding:2px 5px; white-space:nowrap; }'
       + '.md pre.rx-code .pre-actions{ display:flex; align-items:center; gap:5px; flex:0 0 auto; }'
       + '.md pre.rx-code .pre-btn, .md pre.rx-code .copy{'
       + '  font-family:var(--font-mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase;'
@@ -460,7 +462,8 @@
     document.head.appendChild(style);
   }
 
-// viewer
+  /* ------------------------------------------------------------- viewer */
+
   var state = {
     open: false,
     files: [],
@@ -734,9 +737,13 @@
     pre.classList.add('rx-code');
     if (lineCount > 14) pre.classList.add('collapsible');
 
+    var savedTag = opts.saved
+      ? '<span class="pre-saved" title="Saved to this chat workspace">✓ SAVED</span>'
+      : '';
+
     head.innerHTML = '<span class="pre-file">' + icon(name || 'snippet.txt')
       + '<span class="pre-name">' + esc(name || langLabel(lang)) + '</span>'
-      + '<span class="pre-meta">' + lineCount + ' LINES</span></span>'
+      + '<span class="pre-meta">' + lineCount + ' LINES</span>' + savedTag + '</span>'
       + '<span class="pre-actions">'
       + '<button type="button" class="pre-btn primary" data-code-open>OPEN</button>'
       + '<button type="button" class="copy" data-code-copy>COPY</button>'
